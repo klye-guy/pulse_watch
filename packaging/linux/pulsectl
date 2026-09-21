@@ -1,0 +1,22 @@
+#!/bin/bash
+# CLI wrapper. Installed to /usr/bin/pulsectl.
+set -euo pipefail
+ROOT="${PULSEWATCH_HOME:-/opt/pulsewatch}"
+CLI="${ROOT}/bin/pulsectl.mjs"
+
+if [[ -x "${ROOT}/runtime/bin/node" ]]; then
+  NODE="${ROOT}/runtime/bin/node"
+elif command -v node >/dev/null 2>&1; then
+  NODE="$(command -v node)"
+else
+  echo "pulsectl: node not found" >&2
+  exit 1
+fi
+
+if [[ ! -f "${CLI}" ]]; then
+  echo "pulsectl: Pulsewatch is not installed at ${ROOT}" >&2
+  exit 1
+fi
+
+export NODE_PATH="${ROOT}/node_modules${NODE_PATH:+:$NODE_PATH}"
+exec "${NODE}" "${CLI}" "$@"

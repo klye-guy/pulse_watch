@@ -1,0 +1,13 @@
+#!/bin/bash
+# Thin wrapper used when the full app is not yet at /opt/pulsewatch.
+# The installer replaces this with a node invocation of bin/pulsectl.mjs.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -f /opt/pulsewatch/bin/pulsectl.mjs ]]; then
+  exec /usr/bin/node /opt/pulsewatch/bin/pulsectl.mjs "$@"
+fi
+if [[ -f "${ROOT}/bin/pulsectl.mjs" ]]; then
+  exec /usr/bin/node "${ROOT}/bin/pulsectl.mjs" "$@"
+fi
+echo "pulsectl: application is not installed. Run packaging/install.sh first." >&2
+exit 1

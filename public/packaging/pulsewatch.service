@@ -1,0 +1,25 @@
+[Unit]
+Description=Pulsewatch uptime monitor
+Documentation=https://github.com
+After=network-online.target postgresql.service postgresql-14.service postgresql-15.service postgresql-16.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pulsewatch
+Group=pulsewatch
+EnvironmentFile=/etc/pulsewatch/pulsewatch.env
+WorkingDirectory=/opt/pulsewatch
+ExecStart=/usr/bin/node /opt/pulsewatch/.output/server/index.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/pulsewatch /var/lib/pulsewatch
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

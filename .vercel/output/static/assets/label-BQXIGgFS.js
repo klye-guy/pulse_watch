@@ -1,0 +1,1 @@
+import{t as e}from"./react-SIfiwpqq.js";import{t}from"./jsx-runtime-0vZSBttN.js";import{n}from"./dist-DcxTEnkk.js";e();var r=t();function i({className:e,...t}){return(0,r.jsx)(`label`,{className:n(`text-xs font-medium tracking-wide text-muted`,e),...t})}export{i as t};

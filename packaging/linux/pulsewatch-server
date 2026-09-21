@@ -1,0 +1,23 @@
+#!/bin/bash
+# systemd ExecStart helper — prefers a bundled Node 22 if the distro's is too old.
+set -euo pipefail
+ROOT="${PULSEWATCH_HOME:-/opt/pulsewatch}"
+SERVER="${ROOT}/.output/server/index.mjs"
+
+if [[ -x "${ROOT}/runtime/bin/node" ]]; then
+  NODE="${ROOT}/runtime/bin/node"
+elif command -v node >/dev/null 2>&1; then
+  NODE="$(command -v node)"
+else
+  echo "pulsewatch: node not found. Reinstall the package or install Node.js 22." >&2
+  exit 1
+fi
+
+if [[ ! -f "${SERVER}" ]]; then
+  echo "pulsewatch: missing ${SERVER}. The first-install build may have failed." >&2
+  echo "Check journalctl -u pulsewatch and /var/log/pulsewatch-install.log" >&2
+  exit 1
+fi
+
+cd "${ROOT}"
+exec "${NODE}" "${SERVER}"

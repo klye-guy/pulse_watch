@@ -1,0 +1,76 @@
+name: pulsewatch
+arch: all
+platform: linux
+version: ${VERSION}
+release: "1"
+section: admin
+priority: optional
+maintainer: "Pulsewatch <pulsewatch@localhost>"
+description: |-
+  Private uptime monitor with a login-gated dashboard.
+  HTTP, TCP, ping, DNS and keyword checks, retries before alerting,
+  email and webhook notifications, multi-user roles, and a systemd service.
+vendor: Pulsewatch
+homepage: https://github.com
+license: MIT
+contents:
+  - src: ./staging
+    dst: /opt/pulsewatch
+    type: tree
+    file_info:
+      mode: 0755
+  - src: ../pulsewatch.service
+    dst: /usr/lib/systemd/system/pulsewatch.service
+    file_info:
+      mode: 0644
+  - src: ./pulsectl
+    dst: /usr/bin/pulsectl
+    file_info:
+      mode: 0755
+  - src: ../../LICENSE
+    dst: /usr/share/doc/pulsewatch/copyright
+    file_info:
+      mode: 0644
+  - src: ../../INSTALL.md
+    dst: /usr/share/doc/pulsewatch/INSTALL.md
+    file_info:
+      mode: 0644
+  - src: ../README.md
+    dst: /usr/share/doc/pulsewatch/README.md
+    file_info:
+      mode: 0644
+  - dst: /var/lib/pulsewatch
+    type: dir
+    file_info:
+      mode: 0750
+  - dst: /etc/pulsewatch
+    type: dir
+    file_info:
+      mode: 0750
+scripts:
+  postinstall: ./postinst.sh
+  preremove: ./prerm.sh
+  postremove: ./postrm.sh
+overrides:
+  deb:
+    depends:
+      - postgresql
+      - postgresql-contrib
+      - adduser
+      - ca-certificates
+      - curl
+      - xz-utils
+    recommends:
+      - nginx
+      - iputils-ping
+  rpm:
+    depends:
+      - postgresql-server
+      - postgresql
+      - shadow-utils
+      - ca-certificates
+      - curl
+      - xz
+    recommends:
+      - nginx
+      - iputils
