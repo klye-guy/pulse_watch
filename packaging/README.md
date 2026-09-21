@@ -18,7 +18,7 @@ service on port 3000.
 
 ```bash
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0-1_all.deb
+sudo apt install ./pulsewatch_1.0.0-4_all.deb
 sudo pulsectl user add admin@company.com --name Admin --role owner
 ```
 
