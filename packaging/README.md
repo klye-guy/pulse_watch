@@ -3,10 +3,10 @@
 Pulsewatch is a private Uptime Kuma-style monitor. The dashboard is login-only.
 Users are created in the web UI or with `pulsectl` on the host.
 
-Packages (version **1.0.0-2**):
+Packages (version **1.0.0-3**):
 
-- `pulsewatch_1.0.0-2_all.deb` — Ubuntu / Debian (`apt`)
-- `pulsewatch-1.0.0-2.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
+- `pulsewatch_1.0.0-3_all.deb` — Ubuntu / Debian (`apt`)
+- `pulsewatch-1.0.0-3.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
 - `pulsewatch-1.0.0.tar.gz` — source tree (same installer the packages run)
 - `install-el.sh` — Rocky helper: download, verify RPM magic + sha256, then dnf
 
@@ -34,8 +34,8 @@ saves an HTML page as `.rpm`, then prints `Can not load RPM file` /
 `Could not open the file`. Download with `curl -fL` first (or use `install-el.sh`).
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-2.noarch.rpm
-sudo dnf install ./pulsewatch-1.0.0-2.noarch.rpm
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-3.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-3.noarch.rpm
 sudo pulsectl user add admin@company.com --name Admin --role owner
 ```
 

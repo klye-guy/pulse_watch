@@ -5,7 +5,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "${HERE}/../.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "${HERE}/version")"
-RELEASE="2"
+RELEASE="3"
 STAGE="${HERE}/staging"
 DIST="${ROOT}/artifacts/releases"
 PUBLIC="${ROOT}/public/releases"
@@ -55,6 +55,7 @@ chmod +x \
   "${STAGE}/packaging/linux/pulsectl" \
   "${STAGE}/packaging/linux/build-packages.sh" \
   "${STAGE}/packaging/linux/install-el.sh" \
+  "${STAGE}/packaging/linux/posttrans.sh" \
   "${STAGE}/bin/pulsectl.mjs"
 
 TAR_NAME="pulsewatch-${VERSION}"

@@ -24,6 +24,10 @@ if [[ ${EUID} -ne 0 ]]; then
   exit 1
 fi
 
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-${LANG}}"
+
 detect_os() {
   if [[ -f /etc/os-release ]]; then
     # shellcheck disable=SC1091
@@ -117,54 +121,192 @@ npm_bin() {
 }
 
 wait_for_postgres() {
-  local i
-  for i in $(seq 1 40); do
-    if run_as postgres psql -Atqc 'select 1' >/dev/null 2>&1; then
+  local i psql_bin
+  psql_bin="$(command -v psql || true)"
+  [[ -n "${psql_bin}" ]] || psql_bin="/usr/bin/psql"
+  for i in $(seq 1 60); do
+    if command -v pg_isready >/dev/null 2>&1 && pg_isready -q; then
+      if run_as postgres "${psql_bin}" -d postgres -Atqc 'select 1' >/dev/null 2>&1; then
+        return 0
+      fi
+    elif run_as postgres "${psql_bin}" -d postgres -Atqc 'select 1' >/dev/null 2>&1; then
       return 0
     fi
     sleep 1
   done
-  echo "PostgreSQL did not become ready. Check: systemctl status postgresql" >&2
+  log "PostgreSQL did not become ready"
+  systemctl status postgresql postgresql-16 postgresql-15 postgresql-13 --no-pager 2>/dev/null || true
   return 1
 }
 
-ensure_postgres_cluster() {
-  if ! id -u postgres >/dev/null 2>&1; then
-    return 1
+pg_unit() {
+  local f name
+  for name in postgresql postgresql-17 postgresql-16 postgresql-15 postgresql-14 postgresql-13 postgresql-12; do
+    if [[ -f "/usr/lib/systemd/system/${name}.service" ]] || [[ -f "/etc/systemd/system/${name}.service" ]]; then
+      echo "${name}"
+      return 0
+    fi
+  done
+  for f in /usr/lib/systemd/system/postgresql*.service; do
+    [[ -e "${f}" ]] || continue
+    basename "${f}" .service
+    return 0
+  done
+  return 1
+}
+
+pg_setup_bin() {
+  local b
+  for b in postgresql-setup postgresql-17-setup postgresql-16-setup postgresql-15-setup postgresql-14-setup postgresql-13-setup; do
+    if command -v "${b}" >/dev/null 2>&1; then
+      command -v "${b}"
+      return 0
+    fi
+  done
+  [[ -x /usr/bin/postgresql-setup ]] && echo /usr/bin/postgresql-setup && return 0
+  return 1
+}
+
+cluster_initialized() {
+  local d
+  for d in /var/lib/pgsql/data /var/lib/pgsql/*/data /var/lib/pgsql/*/data/base; do
+    if [[ -f "${d}/PG_VERSION" ]] || [[ -f "${d}/../PG_VERSION" && "${d}" == */base ]]; then
+      return 0
+    fi
+  done
+  [[ -f /var/lib/pgsql/data/PG_VERSION ]]
+}
+
+ensure_postgres_packages() {
+  if id -u postgres >/dev/null 2>&1 && command -v psql >/dev/null 2>&1 && command -v postgres >/dev/null 2>&1; then
+    return 0
   fi
+  # Only the server binary is strictly required; psql comes from the client package.
+  if id -u postgres >/dev/null 2>&1 && [[ -x /usr/bin/postgres || -x /usr/bin/psql ]]; then
+    if command -v psql >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  log "PostgreSQL packages missing — installing"
   local os
   os="$(detect_os)"
   case "${os}" in
-    rocky | rhel | almalinux | centos | fedora)
-      if [[ ! -f /var/lib/pgsql/data/PG_VERSION ]] \
-        && [[ ! -d /var/lib/pgsql/16/data ]] \
-        && [[ ! -d /var/lib/pgsql/15/data ]]; then
-        log "Initializing PostgreSQL cluster"
-        postgresql-setup --initdb >/dev/null 2>&1 || /usr/bin/postgresql-setup --initdb >/dev/null 2>&1 || true
+    ubuntu | debian)
+      if ! apt-get install -y postgresql postgresql-contrib; then
+        log "apt could not install postgresql (dpkg may be locked during package setup)."
+        return 1
       fi
-      systemctl enable --now postgresql >/dev/null 2>&1 \
-        || systemctl enable --now postgresql-16 >/dev/null 2>&1 \
-        || systemctl enable --now postgresql-15 >/dev/null 2>&1 \
-        || true
+      ;;
+    rocky | rhel | almalinux | centos | fedora)
+      if ! dnf install -y postgresql-server postgresql; then
+        log "dnf could not install postgresql-server (rpm db may be locked during package setup)."
+        log "After this script, run:  sudo dnf install -y postgresql-server postgresql && sudo bash $0"
+        return 1
+      fi
       ;;
     *)
-      systemctl enable --now postgresql >/dev/null 2>&1 || true
+      return 1
       ;;
   esac
-  wait_for_postgres
+}
+
+fix_pg_hba() {
+  local hba psql_bin
+  psql_bin="$(command -v psql || echo /usr/bin/psql)"
+  hba="$(run_as postgres "${psql_bin}" -d postgres -Atqc 'show hba_file' 2>/dev/null || true)"
+  if [[ -z "${hba}" || ! -f "${hba}" ]]; then
+    for hba in /var/lib/pgsql/data/pg_hba.conf /var/lib/pgsql/*/data/pg_hba.conf; do
+      [[ -f "${hba}" ]] && break
+    done
+  fi
+  if [[ ! -f "${hba}" ]]; then
+    log "Could not find pg_hba.conf — password auth may fail on 127.0.0.1"
+    return 0
+  fi
+  if grep -q 'Pulsewatch local password auth' "${hba}"; then
+    return 0
+  fi
+  log "Allowing password auth for pulsewatch on localhost (${hba})"
+  cp -a "${hba}" "${hba}.pulsewatch.bak"
+  local tmp
+  tmp="$(mktemp)"
+  cat > "${tmp}" <<'HBA'
+# Pulsewatch local password auth
+local   pulsewatch      pulsewatch                              scram-sha-256
+host    pulsewatch      pulsewatch      127.0.0.1/32            scram-sha-256
+host    pulsewatch      pulsewatch      ::1/128                 scram-sha-256
+host    all             all             127.0.0.1/32            scram-sha-256
+host    all             all             ::1/128                 scram-sha-256
+HBA
+  cat "${hba}" >> "${tmp}"
+  mv "${tmp}" "${hba}"
+  chown postgres:postgres "${hba}"
+  chmod 600 "${hba}"
+  local unit
+  unit="$(pg_unit || echo postgresql)"
+  systemctl reload "${unit}" >/dev/null 2>&1 || systemctl restart "${unit}"
+}
+
+ensure_postgres_cluster() {
+  ensure_postgres_packages || true
+  if ! id -u postgres >/dev/null 2>&1; then
+    echo "The postgres system user is missing. Install PostgreSQL:" >&2
+    echo "  sudo dnf install -y postgresql-server postgresql" >&2
+    echo "  sudo bash ${INSTALL_DIR}/packaging/linux/configure-instance.sh" >&2
+    exit 1
+  fi
+  if ! command -v psql >/dev/null 2>&1 && [[ ! -x /usr/bin/psql ]]; then
+    echo "psql is missing. Install the client:  sudo dnf install -y postgresql" >&2
+    exit 1
+  fi
+
+  local unit setup
+  unit="$(pg_unit || true)"
+  setup="$(pg_setup_bin || true)"
+
+  if ! cluster_initialized; then
+    log "Initializing PostgreSQL cluster"
+    if [[ -n "${setup}" ]]; then
+      if ! "${setup}" --initdb; then
+        "${setup}" initdb || true
+      fi
+    else
+      echo "postgresql-setup not found. Install postgresql-server." >&2
+      exit 1
+    fi
+    if ! cluster_initialized; then
+      echo "PostgreSQL initdb did not create a data directory. See /var/log/pulsewatch-install.log" >&2
+      exit 1
+    fi
+  else
+    log "PostgreSQL cluster already initialized"
+  fi
+
+  if [[ -z "${unit}" ]]; then
+    unit="postgresql"
+  fi
+  log "Starting ${unit}"
+  systemctl enable "${unit}"
+  if ! systemctl start "${unit}"; then
+    log "systemctl start ${unit} failed"
+    journalctl -u "${unit}" -n 50 --no-pager || true
+    exit 1
+  fi
+  if ! wait_for_postgres; then
+    echo "PostgreSQL did not become ready. Check: journalctl -u ${unit} -e" >&2
+    exit 1
+  fi
+  fix_pg_hba
 }
 
 ensure_db() {
-  if ! id -u postgres >/dev/null 2>&1; then
-    echo "The postgres system user is missing. Install PostgreSQL and re-run." >&2
-    exit 1
-  fi
   ensure_postgres_cluster
   if [[ -f "${ENV_FILE}" ]] && grep -q '^DATABASE_URL=' "${ENV_FILE}"; then
     log "Keeping existing database credentials in ${ENV_FILE}"
     return 0
   fi
-  local pass sql
+  local pass sql psql_bin
+  psql_bin="$(command -v psql || echo /usr/bin/psql)"
   pass="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 28)"
   sql="$(mktemp)"
   cat > "${sql}" <<SQL
@@ -181,7 +323,7 @@ SELECT 'CREATE DATABASE pulsewatch OWNER pulsewatch'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'pulsewatch')\\gexec
 SQL
   log "Creating role and database 'pulsewatch'"
-  run_as postgres psql -v ON_ERROR_STOP=1 -f "${sql}"
+  run_as postgres "${psql_bin}" -v ON_ERROR_STOP=1 -d postgres -f "${sql}"
   rm -f "${sql}"
   PULSEWATCH_GENERATED_DB_PASS="${pass}"
   export PULSEWATCH_GENERATED_DB_PASS
@@ -235,6 +377,10 @@ build_app() {
   npm="$(npm_bin)"
   node="$(node_bin)"
   node_dir="$(dirname "${node}")"
+  if [[ -f "${INSTALL_DIR}/.output/server/index.mjs" && -d "${INSTALL_DIR}/node_modules/pg" && "${PULSEWATCH_FORCE_BUILD:-}" != "1" ]]; then
+    log "Build already present — skipping npm ci (set PULSEWATCH_FORCE_BUILD=1 to rebuild)"
+    return 0
+  fi
   log "Installing npm dependencies (first install takes a few minutes)"
   chmod +x "${INSTALL_DIR}/bin/pulsectl.mjs" "${INSTALL_DIR}/packaging/linux/"* || true
   chown -R "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}" /var/lib/pulsewatch
@@ -286,7 +432,13 @@ enable_service() {
   fi
   systemctl daemon-reload
   systemctl enable pulsewatch.service
-  systemctl restart pulsewatch.service || systemctl start pulsewatch.service
+  if ! systemctl restart pulsewatch.service && ! systemctl start pulsewatch.service; then
+    log "pulsewatch.service failed to start"
+    systemctl status pulsewatch.service --no-pager || true
+    journalctl -u pulsewatch -n 50 --no-pager || true
+    echo "See /var/log/pulsewatch-install.log and: journalctl -u pulsewatch -e" >&2
+    exit 1
+  fi
   log "systemd unit pulsewatch is enabled"
 }
 

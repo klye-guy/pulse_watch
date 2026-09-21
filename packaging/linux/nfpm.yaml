@@ -2,7 +2,7 @@ name: pulsewatch
 arch: all
 platform: linux
 version: ${VERSION}
-release: "2"
+release: "3"
 section: admin
 priority: optional
 maintainer: "Pulsewatch <pulsewatch@localhost>"
@@ -55,6 +55,8 @@ rpm:
   group: Applications/System
   compression: gzip
   packager: Pulsewatch <pulsewatch@localhost>
+  scripts:
+    posttrans: ./posttrans.sh
 overrides:
   deb:
     depends:
