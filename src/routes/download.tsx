@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/download")({ component: DownloadPage });
 
 const VERSION = "1.0.0";
-const RELEASE = "3";
+const RELEASE = "4";
 const DEB = `pulsewatch_${VERSION}-${RELEASE}_all.deb`;
 const RPM = `pulsewatch-${VERSION}-${RELEASE}.noarch.rpm`;
 const TAR = `pulsewatch-${VERSION}.tar.gz`;

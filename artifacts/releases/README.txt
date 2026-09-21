@@ -1,10 +1,10 @@
-Pulsewatch 1.0.0-3 Linux packages
+Pulsewatch 1.0.0-4 Linux packages
 
   Rocky / Alma / RHEL / Fedora — download then install from the local file.
   Do not pass the GitHub URL to dnf (it often saves an HTML page as .rpm).
 
-      curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-3.noarch.rpm
-      sudo dnf install ./pulsewatch-1.0.0-3.noarch.rpm
+      curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-4.noarch.rpm
+      sudo dnf install ./pulsewatch-1.0.0-4.noarch.rpm
 
   Or run the helper (verifies RPM magic + sha256):
 
@@ -14,7 +14,7 @@ Pulsewatch 1.0.0-3 Linux packages
   Ubuntu / Debian:
 
       sudo apt-get update
-      sudo apt install ./pulsewatch_1.0.0-3_all.deb
+      sudo apt install ./pulsewatch_1.0.0-4_all.deb
 
   Source tarball (works on Rocky if the RPM will not load):
 

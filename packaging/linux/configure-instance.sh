@@ -28,6 +28,12 @@ export PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 export LANG="${LANG:-C.UTF-8}"
 export LC_ALL="${LC_ALL:-${LANG}}"
 
+# Halt the systemd crash-loop if the unit was enabled before setup finished.
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl stop pulsewatch.service >/dev/null 2>&1 || true
+  systemctl reset-failed pulsewatch.service >/dev/null 2>&1 || true
+fi
+
 detect_os() {
   if [[ -f /etc/os-release ]]; then
     # shellcheck disable=SC1091
@@ -338,6 +344,8 @@ ensure_user() {
   fi
   mkdir -p "${INSTALL_DIR}" /etc/pulsewatch /var/lib/pulsewatch
   chown -R "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}" /var/lib/pulsewatch
+  chown root:"${SERVICE_USER}" /etc/pulsewatch
+  chmod 750 /etc/pulsewatch
 }
 
 write_env() {

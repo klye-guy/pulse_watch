@@ -1,7 +1,7 @@
 # Install Pulsewatch
 
 Pulsewatch is a private uptime monitor (login-gated dashboard, systemd service,
-PostgreSQL). Packages and the source tarball are the same **1.0.0-3** release.
+PostgreSQL). Packages and the source tarball are the same **1.0.0-4** release.
 
 Verify checksums first:
 
@@ -19,16 +19,16 @@ GitHub release URLs **redirect**. `dnf install https://github.com/...rpm` (and
 Download the file first, confirm it is an RPM, then install **from the local path**.
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-3.noarch.rpm
-ls -l pulsewatch-1.0.0-3.noarch.rpm
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-4.noarch.rpm
+ls -l pulsewatch-1.0.0-4.noarch.rpm
 # First bytes must be ed ab ee db — not 3c 21 64 6f ("<!do", an HTML page):
-od -An -tx1 -N8 pulsewatch-1.0.0-3.noarch.rpm
-sudo dnf install ./pulsewatch-1.0.0-3.noarch.rpm
+od -An -tx1 -N8 pulsewatch-1.0.0-4.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-4.noarch.rpm
 sudo pulsectl user add admin@company.com --name Admin --role owner
 ```
 
 Use the full path if the file is not in the current directory
-(`/home/you/Downloads/pulsewatch-1.0.0-3.noarch.rpm`). The `./` (or full path)
+(`/home/you/Downloads/pulsewatch-1.0.0-4.noarch.rpm`). The `./` (or full path)
 is required so dnf does not search the distro repos.
 
 If the RPM installed but **the service will not start** and `pulsectl` says the
@@ -64,7 +64,7 @@ calls `dnf` only for PostgreSQL and never needs our `.rpm`.
 
 ```bash
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0-3_all.deb
+sudo apt install ./pulsewatch_1.0.0-4_all.deb
 sudo pulsectl user add admin@company.com --name Admin --role owner
 ```
 
