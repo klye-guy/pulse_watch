@@ -26,3 +26,5 @@ coverage
 AGENTS.md
 AGENTS.project.md
 startup.sh
+.github_repo
+.node_modules.lock

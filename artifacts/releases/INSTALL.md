@@ -1,7 +1,7 @@
 # Install Pulsewatch
 
 Pulsewatch is a private uptime monitor (login-gated dashboard, systemd service,
-PostgreSQL). Packages and the source tarball are the same 1.0.0 release.
+PostgreSQL). Packages and the source tarball are the same **1.0.0-2** release.
 
 Verify checksums first:
 
@@ -9,27 +9,53 @@ Verify checksums first:
 sha256sum -c SHA256SUMS
 ```
 
+## Rocky Linux / Alma / RHEL / Fedora (`dnf`)
+
+GitHub release URLs **redirect**. `dnf install https://github.com/...rpm` (and
+`curl` without `-L`) often saves an HTML page. DNF then reports:
+
+`Can not load RPM file` / `Could not open the file` / `Failed to install the RPM`
+
+Download the file first, confirm it is an RPM, then install **from the local path**.
+
+```bash
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-2.noarch.rpm
+ls -l pulsewatch-1.0.0-2.noarch.rpm
+# First bytes must be ed ab ee db — not 3c 21 64 6f ("<!do", an HTML page):
+od -An -tx1 -N8 pulsewatch-1.0.0-2.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-2.noarch.rpm
+sudo pulsectl user add admin@company.com --name Admin --role owner
+```
+
+Use the full path if the file is not in the current directory
+(`/home/you/Downloads/pulsewatch-1.0.0-2.noarch.rpm`). The `./` (or full path)
+is required so dnf does not search the distro repos.
+
+Helper that does the download + magic check + sha256 + dnf:
+
+```bash
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/install-el.sh
+sudo bash install-el.sh
+```
+
+If the RPM still will not load, use the source tarball below — that installer
+calls `dnf` only for PostgreSQL and never needs our `.rpm`.
+
 ## Ubuntu / Debian (`apt`)
 
 ```bash
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0-1_all.deb
+sudo apt install ./pulsewatch_1.0.0-2_all.deb
 sudo pulsectl user add admin@company.com --name Admin --role owner
 ```
 
 `apt install ./file.deb` also pulls PostgreSQL. The `./` matters — without it
 apt looks in the distro repo instead of the file in the current directory.
 
-## Rocky Linux / Alma / RHEL / Fedora (`dnf`)
+## Source tarball (works on Rocky too)
 
 ```bash
-sudo dnf install ./pulsewatch-1.0.0-1.noarch.rpm
-sudo pulsectl user add admin@company.com --name Admin --role owner
-```
-
-## Source tarball
-
-```bash
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0.tar.gz
 tar -xzf pulsewatch-1.0.0.tar.gz
 cd pulsewatch-1.0.0
 sudo bash packaging/install.sh

@@ -3,11 +3,12 @@
 Pulsewatch is a private Uptime Kuma-style monitor. The dashboard is login-only.
 Users are created in the web UI or with `pulsectl` on the host.
 
-Packages (version **1.0.0**):
+Packages (version **1.0.0-2**):
 
-- `pulsewatch_1.0.0_all.deb` — Ubuntu / Debian (`apt`)
-- `pulsewatch-1.0.0-1.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
+- `pulsewatch_1.0.0-2_all.deb` — Ubuntu / Debian (`apt`)
+- `pulsewatch-1.0.0-2.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
 - `pulsewatch-1.0.0.tar.gz` — source tree (same installer the packages run)
+- `install-el.sh` — Rocky helper: download, verify RPM magic + sha256, then dnf
 
 First install compiles the server on the host (a few minutes, needs outbound HTTPS
 to npmjs.org and, if Node 22 is missing, nodejs.org). After that it is a systemd
@@ -17,18 +18,24 @@ service on port 3000.
 
 ```bash
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0_all.deb
+sudo apt install ./pulsewatch_1.0.0-1_all.deb
 sudo pulsectl user add admin@company.com --name Admin --role owner
 ```
 
-`apt install ./file.deb` pulls PostgreSQL. Node.js 22 is used from the system if
-it is already ≥ 20; otherwise the package unpacks an official Node 22 runtime
-under `/opt/pulsewatch/runtime`.
+The `./` is required so apt installs the file in the current directory instead of
+searching the distro repo. `apt install ./file.deb` pulls PostgreSQL. Node.js 22
+is used from the system if it is already ≥ 20; otherwise the package unpacks an
+official Node 22 runtime under `/opt/pulsewatch/runtime`.
 
 ## Rocky Linux / Alma / RHEL / Fedora (dnf)
 
+Do **not** pass the GitHub URL to `dnf install`. GitHub redirects, and dnf often
+saves an HTML page as `.rpm`, then prints `Can not load RPM file` /
+`Could not open the file`. Download with `curl -fL` first (or use `install-el.sh`).
+
 ```bash
-sudo dnf install ./pulsewatch-1.0.0-1.noarch.rpm
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-2.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-2.noarch.rpm
 sudo pulsectl user add admin@company.com --name Admin --role owner
 ```
 
