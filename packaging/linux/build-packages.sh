@@ -5,7 +5,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "${HERE}/../.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "${HERE}/version")"
-RELEASE="7"
+RELEASE="8"
 STAGE="${HERE}/staging"
 DIST="${ROOT}/artifacts/releases"
 PUBLIC="${ROOT}/public/releases"
