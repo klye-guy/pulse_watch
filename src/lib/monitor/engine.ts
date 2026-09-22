@@ -315,6 +315,9 @@ export function startEngine(): void {
   }, 5_000);
 }
 
+// Belt-and-suspenders for any server import of this module. Production Nitro
+// boot relies on `server/plugins/start-engine.ts` because route/serverFn chunks
+// (and this side-effect) are not loaded until first request.
 if (typeof window === "undefined" && process.env.PULSEWATCH_SELFHOST === "1") {
   startEngine();
 }
