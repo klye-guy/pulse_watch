@@ -1,4 +1,4 @@
-# Install Pulsewatch 1.0.0-7
+# Install Pulsewatch 1.0.0-8
 
 Private uptime monitor: login-gated dashboard, systemd service, PostgreSQL.
 **No public email sign-up** — create the first owner (and further accounts) with
@@ -23,8 +23,8 @@ sudo bash install-el.sh
 Or:
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-7.noarch.rpm
-sudo dnf install ./pulsewatch-1.0.0-7.noarch.rpm
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-8.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-8.noarch.rpm
 ```
 
 Use a full path if the RPM is not in the current directory. First install
@@ -38,9 +38,9 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 ## Ubuntu / Debian
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch_1.0.0-7_all.deb
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch_1.0.0-8_all.deb
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0-7_all.deb
+sudo apt install ./pulsewatch_1.0.0-8_all.deb
 sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 

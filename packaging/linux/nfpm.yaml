@@ -2,7 +2,7 @@ name: pulsewatch
 arch: all
 platform: linux
 version: ${VERSION}
-release: "7"
+release: "8"
 section: admin
 priority: optional
 maintainer: "Pulsewatch <pulsewatch@localhost>"
