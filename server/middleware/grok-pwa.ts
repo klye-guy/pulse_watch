@@ -13,6 +13,9 @@
  *   (this function cannot read `src/lib/og/site.json` or `public/og.jpg`).
  *   This must be a middleware transforming `next()`: h3 discards the `response`
  *   runtime hook's return value, and `render:html` does not exist in Nitro v3.
+ *
+ * On `next()` failures, logs a structured line (method, path+query, cause chain)
+ * so production journals can attribute opaque SSR 500s before rethrowing.
  */
 import installPageTemplate from "../../scripts/install-page.html?raw";
 import { grokOgIdentity } from "virtual:grok-og-identity";
@@ -24,6 +27,7 @@ import {
   renderInstallPageHtml,
   renderWebManifest,
 } from "../../scripts/grok-pwa-shared.mjs";
+import { logSsrRouteError } from "../ssr-error-log-shared";
 
 interface GrokPwaEvent {
   url: URL;
@@ -34,6 +38,25 @@ function requestHost(event: GrokPwaEvent): string {
   return (
     event.req.headers.get("x-forwarded-host") ?? event.req.headers.get("host") ?? event.url.host
   );
+}
+
+async function nextLogged(
+  event: GrokPwaEvent,
+  next: () => unknown | Promise<unknown>,
+): Promise<unknown> {
+  try {
+    return await next();
+  } catch (err) {
+    logSsrRouteError(
+      {
+        method: (event.req.method ?? "GET").toUpperCase(),
+        path: event.url.pathname + event.url.search,
+      },
+      err,
+      "grok-pwa-ssr-error",
+    );
+    throw err;
+  }
 }
 
 function injectHeadStreaming(response: Response, host: string): Response {
@@ -65,7 +88,7 @@ export default async function grokPwaMiddleware(
   next: () => unknown | Promise<unknown>,
 ): Promise<unknown> {
   const method = (event.req.method ?? "GET").toUpperCase();
-  if (method !== "GET") return next();
+  if (method !== "GET") return nextLogged(event, next);
 
   const path = event.url.pathname;
   const urlWithQuery = path + event.url.search;
@@ -96,9 +119,9 @@ export default async function grokPwaMiddleware(
     });
   }
 
-  if (!isDocumentPath(path)) return next();
+  if (!isDocumentPath(path)) return nextLogged(event, next);
 
-  const result = await next();
+  const result = await nextLogged(event, next);
   if (
     result instanceof Response &&
     result.body &&
