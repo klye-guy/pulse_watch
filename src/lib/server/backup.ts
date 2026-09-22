@@ -205,6 +205,11 @@ export async function restoreBackup(
     await upsertPageRow(sql, opts.actorId, page, monitorIds);
   }
 
+  // Immediate tick so restored monitors do not wait for a dashboard hit.
+  // startEngine() is idempotent; safe if the Nitro self-host plugin already ran.
+  const { kickDueChecks } = await import("@/lib/monitor/engine");
+  kickDueChecks();
+
   return {
     mode: opts.mode,
     users: userCount,

@@ -618,6 +618,23 @@ async function cmdBackup(file) {
   );
 }
 
+function kickCheckEngineBestEffort() {
+  // pulsectl is a separate process from the Nitro server, so it cannot call
+  // startEngine() in-process. Restarting the unit re-runs the Nitro boot
+  // plugin which starts the engine and immediately runs due checks.
+  try {
+    const { spawnSync } = require("node:child_process");
+    const active = spawnSync("systemctl", ["is-active", "pulsewatch"], { encoding: "utf8" });
+    if (String(active.stdout || "").trim() !== "active") return;
+    const restarted = spawnSync("systemctl", ["try-restart", "pulsewatch"], { encoding: "utf8" });
+    if (restarted.status === 0) {
+      console.log("kicked check engine (restarted pulsewatch.service)");
+    }
+  } catch {
+    /* non-root / no systemd — engine starts on next service boot via Nitro plugin */
+  }
+}
+
 async function cmdRestore(file, argv) {
   if (!file) throw new Error("backup file required");
   const replace = argv.includes("--replace");
@@ -627,6 +644,7 @@ async function cmdRestore(file, argv) {
   console.log(
     `${replace ? "replaced" : "merged"} ${backup.users.length} users, ${backup.monitors.length} monitors, ${backup.channels.length} channels, ${backup.statusPages.length} status pages`,
   );
+  kickCheckEngineBestEffort();
 }
 
 const [cmd, sub, ...rest] = process.argv.slice(2);
