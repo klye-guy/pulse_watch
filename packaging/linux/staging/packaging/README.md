@@ -3,11 +3,12 @@
 Pulsewatch is a private Uptime Kuma-style monitor. The dashboard is login-only.
 Users are created in the web UI or with `pulsectl` on the host.
 
-Packages (version **1.0.0**):
+Packages (version **1.0.0-5**):
 
-- `pulsewatch_1.0.0_all.deb` — Ubuntu / Debian (`apt`)
-- `pulsewatch-1.0.0-1.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
+- `pulsewatch_1.0.0-5_all.deb` — Ubuntu / Debian (`apt`)
+- `pulsewatch-1.0.0-5.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
 - `pulsewatch-1.0.0.tar.gz` — source tree (same installer the packages run)
+- `install-el.sh` — Rocky helper: download, verify RPM magic + sha256, then dnf
 
 First install compiles the server on the host (a few minutes, needs outbound HTTPS
 to npmjs.org and, if Node 22 is missing, nodejs.org). After that it is a systemd
@@ -17,19 +18,25 @@ service on port 3000.
 
 ```bash
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0_all.deb
-sudo pulsectl user add admin@company.com --name Admin --role owner
+sudo apt install ./pulsewatch_1.0.0-5_all.deb
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
-`apt install ./file.deb` pulls PostgreSQL. Node.js 22 is used from the system if
-it is already ≥ 20; otherwise the package unpacks an official Node 22 runtime
-under `/opt/pulsewatch/runtime`.
+The `./` is required so apt installs the file in the current directory instead of
+searching the distro repo. `apt install ./file.deb` pulls PostgreSQL. Node.js 22
+is used from the system if it is already ≥ 20; otherwise the package unpacks an
+official Node 22 runtime under `/opt/pulsewatch/runtime`.
 
 ## Rocky Linux / Alma / RHEL / Fedora (dnf)
 
+Do **not** pass the GitHub URL to `dnf install`. GitHub redirects, and dnf often
+saves an HTML page as `.rpm`, then prints `Can not load RPM file` /
+`Could not open the file`. Download with `curl -fL` first (or use `install-el.sh`).
+
 ```bash
-sudo dnf install ./pulsewatch-1.0.0-1.noarch.rpm
-sudo pulsectl user add admin@company.com --name Admin --role owner
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-5.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-5.noarch.rpm
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
 ## Source tarball
@@ -38,7 +45,7 @@ sudo pulsectl user add admin@company.com --name Admin --role owner
 tar -xzf pulsewatch-1.0.0.tar.gz
 cd pulsewatch-1.0.0
 sudo bash packaging/install.sh
-sudo pulsectl user add admin@company.com --name Admin --role owner
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
 ## After install
@@ -100,6 +107,8 @@ Pulsewatch and PostgreSQL on one VM, **not** on the machines you watch:
 
 Give the box 2 GB RAM before the first install — the compile step is the peak.
 Do not use swap as a substitute for RAM. Local SSD/NVMe, not NFS.
+
+First install also needs outbound HTTPS to `npmjs.org` (and `nodejs.org` if Node 22 is not already on the PATH).
 
 ## Scale, retries, and email
 

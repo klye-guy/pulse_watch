@@ -8,8 +8,23 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { randomUUID } from "node:crypto";
-import pg from "pg";
-import { hashPassword } from "better-auth/crypto";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+if (!existsSync(join(rootDir, "node_modules", "pg"))) {
+  console.error("pulsectl: the Node 'pg' package is not installed. First-boot setup did not finish.");
+  console.error("On Rocky/RHEL, PostgreSQL is usually not initialized yet. Run:");
+  console.error("  sudo dnf install -y postgresql-server postgresql");
+  console.error("  sudo bash /opt/pulsewatch/packaging/linux/configure-instance.sh");
+  console.error("Log: sudo tail -n 80 /var/log/pulsewatch-install.log");
+  process.exit(1);
+}
+
+const require = createRequire(import.meta.url);
+const pg = require("pg");
+const { hashPassword } = await import("better-auth/crypto");
 
 function loadEnvFile(path) {
   if (!existsSync(path)) return;

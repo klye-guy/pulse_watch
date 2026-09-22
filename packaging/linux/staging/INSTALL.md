@@ -1,34 +1,55 @@
-# Install Pulsewatch
+# Install Pulsewatch 1.0.0-5
 
-Pulsewatch is a private uptime monitor (login-gated dashboard, systemd service,
-PostgreSQL). Packages and the source tarball are the same 1.0.0 release.
+Private uptime monitor: login-gated dashboard, systemd service, PostgreSQL.
 
-## Ubuntu / Debian (`apt`)
+Release assets: [github.com/klye-guy/pulse_watch/releases/tag/v1.0.0](https://github.com/klye-guy/pulse_watch/releases/tag/v1.0.0)
 
 ```bash
-sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0_all.deb
-sudo pulsectl user add admin@company.com --name Admin --role owner
+sha256sum -c SHA256SUMS
 ```
 
-`apt install ./file.deb` also pulls PostgreSQL. Open `http://<host>:3000` and
-sign in with the owner you just created (or create the first owner in the
-browser — the first account becomes owner).
+## Rocky Linux / Alma / RHEL / Fedora
 
-## Rocky Linux / Alma / RHEL / Fedora (`dnf`)
+Download the file, then install from the local path. Do not pass the GitHub URL
+to `dnf install` (redirects can save an HTML page as `.rpm`).
 
 ```bash
-sudo dnf install ./pulsewatch-1.0.0-1.noarch.rpm
-sudo pulsectl user add admin@company.com --name Admin --role owner
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/install-el.sh
+sudo bash install-el.sh
+```
+
+Or:
+
+```bash
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-5.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-5.noarch.rpm
+```
+
+Use a full path if the RPM is not in the current directory. First install
+initializes PostgreSQL, compiles the app (a few minutes, ~2 GB RAM, outbound
+HTTPS to npmjs.org), and starts `pulsewatch`.
+
+```bash
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
+```
+
+## Ubuntu / Debian
+
+```bash
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch_1.0.0-5_all.deb
+sudo apt-get update
+sudo apt install ./pulsewatch_1.0.0-5_all.deb
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
 ## Source tarball
 
 ```bash
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0.tar.gz
 tar -xzf pulsewatch-1.0.0.tar.gz
 cd pulsewatch-1.0.0
 sudo bash packaging/install.sh
-sudo pulsectl user add admin@company.com --name Admin --role owner
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
 ## After install
@@ -44,15 +65,6 @@ sudo pulsectl user add admin@company.com --name Admin --role owner
 Put nginx or Caddy in front for HTTPS, then set `BETTER_AUTH_URL` in the env
 file to the public URL and `sudo systemctl restart pulsewatch`.
 
-The first package install compiles the server on the host (a few minutes). It
-needs outbound HTTPS to npmjs.org and, if Node.js 20+ is missing, nodejs.org.
-Give the VM **2 GB RAM** for that compile. Reinstalls keep `/etc/pulsewatch/pulsewatch.env`
-and the Postgres database.
-
-Verify checksums before you install:
-
-```bash
-sha256sum -c SHA256SUMS
-```
+Reinstalls keep `/etc/pulsewatch/pulsewatch.env` and the Postgres database.
 
 Full operations notes: [packaging/README.md](packaging/README.md).

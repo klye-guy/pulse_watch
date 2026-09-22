@@ -1,4 +1,4 @@
-# Install Pulsewatch 1.0.0-4
+# Install Pulsewatch 1.0.0-5
 
 Private uptime monitor: login-gated dashboard, systemd service, PostgreSQL.
 
@@ -21,8 +21,8 @@ sudo bash install-el.sh
 Or:
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-4.noarch.rpm
-sudo dnf install ./pulsewatch-1.0.0-4.noarch.rpm
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-5.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-5.noarch.rpm
 ```
 
 Use a full path if the RPM is not in the current directory. First install
@@ -30,16 +30,16 @@ initializes PostgreSQL, compiles the app (a few minutes, ~2 GB RAM, outbound
 HTTPS to npmjs.org), and starts `pulsewatch`.
 
 ```bash
-sudo pulsectl user add admin@company.com --name Admin --role owner
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
 ## Ubuntu / Debian
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch_1.0.0-4_all.deb
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch_1.0.0-5_all.deb
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0-4_all.deb
-sudo pulsectl user add admin@company.com --name Admin --role owner
+sudo apt install ./pulsewatch_1.0.0-5_all.deb
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
 ## Source tarball
@@ -49,7 +49,7 @@ curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pul
 tar -xzf pulsewatch-1.0.0.tar.gz
 cd pulsewatch-1.0.0
 sudo bash packaging/install.sh
-sudo pulsectl user add admin@company.com --name Admin --role owner
+sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
 ## After install

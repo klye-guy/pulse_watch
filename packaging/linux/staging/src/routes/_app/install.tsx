@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_app/install")({ component: InstallPage });
 
 const VERSION = "1.0.0";
-const DEB = `pulsewatch_${VERSION}_all.deb`;
-const RPM = `pulsewatch-${VERSION}-1.noarch.rpm`;
+const RELEASE = "4";
+const DEB = `pulsewatch_${VERSION}-${RELEASE}_all.deb`;
+const RPM = `pulsewatch-${VERSION}-${RELEASE}.noarch.rpm`;
 const TAR = `pulsewatch-${VERSION}.tar.gz`;
 
 function InstallPage() {
@@ -31,7 +32,8 @@ sudo apt install ./${DEB}`}
         <PackageCard
           title="Rocky / RHEL / Fedora"
           filename={RPM}
-          command={`sudo dnf install ./${RPM}`}
+          command={`curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v${VERSION}/${RPM}
+sudo dnf install ./${RPM}`}
         />
         <PackageCard
           title="Source tarball"
@@ -58,7 +60,7 @@ sudo systemctl enable --now pulsewatch
 journalctl -u pulsewatch -f`}
         </pre>
         <p className="mt-3 text-sm text-muted">
-          UI at <code className="font-mono">http://<host>:3000</code>. Config:{" "}
+          UI at <code className="font-mono">{"http://<host>:3000"}</code>. Config:{" "}
           <code className="font-mono">/etc/pulsewatch/pulsewatch.env</code>. For HTTPS, put
           nginx/Caddy in front and set <code className="font-mono">BETTER_AUTH_URL</code> to
           the public URL.
