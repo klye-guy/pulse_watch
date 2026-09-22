@@ -46,6 +46,7 @@ import {
   PREVIEW_CLIENT_ID,
   PREVIEW_CLIENT_SECRET,
 } from "./preview";
+import { CLIENT_IP_HEADER } from "./client-ip.server";
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -228,6 +229,13 @@ export const auth = betterAuth({
       session_data: { name: "__Host-grok-auth.session_data" },
       account_data: { name: "__Host-grok-auth.account_data" },
       dont_remember: { name: "__Host-grok-auth.dont_remember" },
+    },
+    // Self-host rate limits: middleware + auth route publish a single trustworthy
+    // X-Real-IP (socket peer, or nginx's header when the peer is a trusted
+    // reverse proxy). Do not set trustedProxies here — BA would skip loopback
+    // client IPs (local curl / same-host) and fall back to the shared bucket.
+    ipAddress: {
+      ipAddressHeaders: [CLIENT_IP_HEADER],
     },
   },
 
