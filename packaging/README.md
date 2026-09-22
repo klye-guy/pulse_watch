@@ -51,6 +51,7 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 ## After install
 
 - UI: `http://<host>:3000` (put nginx/Caddy in front for HTTPS and set `BETTER_AUTH_URL` in `/etc/pulsewatch/pulsewatch.env` to the public URL)
+- Reverse proxy example: `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for Better Auth rate limits; optional `PULSEWATCH_TRUSTED_PROXIES` / `HOST=127.0.0.1`)
 - Logs: `journalctl -u pulsewatch -f`
 - Config: `/etc/pulsewatch/pulsewatch.env`
 - Data: PostgreSQL database `pulsewatch` (kept on uninstall)
