@@ -13,7 +13,7 @@ export const Route = createFileRoute("/login")({
     try {
       return await getSetupState();
     } catch {
-      return { needsSetup: true };
+      return { needsSetup: true, allowPublicSignup: false, oauthEnabled: false };
     }
   },
   component: Login,
@@ -23,10 +23,9 @@ function Login() {
   const { user, isPending } = useCurrentUserState();
   const loaded = Route.useLoaderData();
   const needsSetup = loaded.needsSetup;
-  const [mode, setMode] = useState<"signin" | "setup">(needsSetup ? "setup" : "signin");
+  const oauthEnabled = Boolean(loaded.oauthEnabled);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -37,22 +36,13 @@ function Login() {
     setError(null);
     setBusy(true);
     try {
-      if (mode === "setup") {
-        const { error: err } = await authClient.signUp.email({
-          email,
-          password,
-          name: name.trim() || email.split("@")[0] || "Owner",
-          callbackURL: "/",
-        });
-        if (err) throw new Error(err.message ?? "Could not create the owner account");
-      } else {
-        const { error: err } = await authClient.signIn.email({
-          email,
-          password,
-          callbackURL: "/",
-        });
-        if (err) throw new Error(err.message ?? "Invalid email or password");
-      }
+      // Public sign-up is disabled (Kevin #1). First owner: pulsectl user add.
+      const { error: err } = await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: "/",
+      });
+      if (err) throw new Error(err.message ?? "Invalid email or password");
       window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
@@ -73,20 +63,12 @@ function Login() {
           </span>
           <h1 className="text-2xl font-semibold tracking-tight">Pulsewatch</h1>
           <p className="mt-2 max-w-sm text-sm text-muted">
-            {mode === "setup"
-              ? "Create the owner account. After this, only established users can open the dashboard."
-              : "Sign in with an established account. New users are added by an administrator."}
+            Sign in with an established account. New users are added by an administrator.
           </p>
         </div>
 
         <div className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
           <form className="space-y-3" onSubmit={onSubmit}>
-            {mode === "setup" && (
-              <label className="grid gap-1.5">
-                <Label>Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Lovelace" />
-              </label>
-            )}
             <label className="grid gap-1.5">
               <Label>Email</Label>
               <Input
@@ -104,18 +86,18 @@ function Login() {
                 type="password"
                 required
                 minLength={8}
-                autoComplete={mode === "setup" ? "new-password" : "current-password"}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
             {error && <p className="text-sm text-down">{error}</p>}
             <Button className="w-full" type="submit" disabled={busy || !authEnabled}>
-              {busy ? "Please wait…" : mode === "setup" ? "Create owner account" : "Sign in"}
+              {busy ? "Please wait…" : "Sign in"}
             </Button>
           </form>
 
-          {authEnabled && (
+          {authEnabled && oauthEnabled && (
             <div className="mt-5">
               <div className="mb-3 flex items-center gap-3 text-xs text-subtle">
                 <span className="h-px flex-1 bg-border" />
@@ -141,16 +123,9 @@ function Login() {
 
         {needsSetup ? (
           <p className="mt-4 text-center text-xs text-subtle">
-            Fresh install — this first account becomes the owner.
-            {mode === "setup" ? (
-              <>
-                {" "}
-                Already have an account?{" "}
-                <button type="button" className="underline" onClick={() => setMode("signin")}>
-                  Sign in
-                </button>
-              </>
-            ) : null}
+            Fresh install — create the owner with{" "}
+            <code className="font-mono text-muted">pulsectl user add</code> (public sign-up is
+            disabled).
           </p>
         ) : (
           <p className="mt-4 text-center text-xs text-subtle">

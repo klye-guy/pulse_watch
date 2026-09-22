@@ -1,6 +1,7 @@
 import type { Sql } from "@/lib/db";
 import type { ChannelRow, ChannelType, NotifyLogRow } from "@/lib/types";
 import { newId } from "@/lib/utils";
+import { redactSecrets } from "./channel-redact.mjs";
 
 type ChannelDb = {
   id: string;
@@ -34,13 +35,6 @@ export async function listChannels(sql: Sql): Promise<ChannelRow[]> {
     active: Boolean(r.active),
     createdAt: typeof r.created_at === "string" ? r.created_at : new Date(r.created_at).toISOString(),
   }));
-}
-
-function redactSecrets(type: ChannelType, config: Record<string, string>): Record<string, string> {
-  const next = { ...config };
-  if (next.pass) next.pass = "";
-  if (type === "telegram" && next.token) next.token = next.token.length > 6 ? `${next.token.slice(0, 4)}…` : "";
-  return next;
 }
 
 export async function upsertChannel(

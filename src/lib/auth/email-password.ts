@@ -1,10 +1,12 @@
 /**
  * Local email/password sign-in (this app's Better Auth DB — not the broker).
  *
- * Off by default. To enable: set `emailAndPasswordEnabled` to `true` below,
- * then build sign-up / sign-in forms with `authClient.signUp.email` /
- * `authClient.signIn.email` from `@/lib/auth/client` (see the auth skill).
+ * Off by default in the App Builder template. Pulsewatch enables it for
+ * self-host sign-in. Public sign-up stays closed (`disableSignUp: true` in
+ * `server.ts`); create the first owner with `pulsectl user add`, then add
+ * further users from the dashboard or CLI.
  *
- * Do NOT edit `server.ts` for this — that file is frozen pre-wired config.
+ * Do NOT edit `server.ts` for the enable flag — flip `emailAndPasswordEnabled`
+ * here only (see auth skill).
  */
 export const emailAndPasswordEnabled = true;
