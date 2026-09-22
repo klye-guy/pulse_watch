@@ -22,14 +22,12 @@ export const getAccessState = createServerFn({ method: "GET" })
   });
 
 export const getSetupState = createServerFn({ method: "GET" }).handler(async () => {
-  const { getSql } = await import("@/lib/db");
   const { brokerOAuthConfigured } = await import("@/lib/auth/server");
-  const sql = await getSql();
-  const rows = await sql<{ n: number }>`select count(*)::int as n from members`;
-  const needsSetup = Number(rows[0]?.n ?? 0) === 0;
+  // AppSec #9: do not disclose whether members exist via public needsSetup.
+  // Always return a constant false. First owner is created with `pulsectl user add`
+  // (public sign-up stays disabled — Kevin #1).
   return {
-    needsSetup,
-    // Public email sign-up is always disabled server-side (Kevin #1).
+    needsSetup: false,
     allowPublicSignup: false,
     // Broker OAuth UI only when real GROK_AUTH_* (or preview) is configured (Kevin #2).
     oauthEnabled: brokerOAuthConfigured,
