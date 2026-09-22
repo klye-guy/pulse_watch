@@ -3,10 +3,10 @@
 Pulsewatch is a private Uptime Kuma-style monitor. The dashboard is login-only.
 Users are created in the web UI or with `pulsectl` on the host.
 
-Packages (version **1.0.0-5**):
+Packages (version **1.0.0-6**):
 
-- `pulsewatch_1.0.0-5_all.deb` — Ubuntu / Debian (`apt`)
-- `pulsewatch-1.0.0-5.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
+- `pulsewatch_1.0.0-6_all.deb` — Ubuntu / Debian (`apt`)
+- `pulsewatch-1.0.0-6.noarch.rpm` — Rocky / Alma / RHEL / Fedora (`dnf`)
 - `pulsewatch-1.0.0.tar.gz` — source tree (same installer the packages run)
 - `install-el.sh` — Rocky helper: download, verify RPM magic + sha256, then dnf
 
@@ -18,7 +18,7 @@ service on port 3000.
 
 ```bash
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0-5_all.deb
+sudo apt install ./pulsewatch_1.0.0-6_all.deb
 sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
@@ -34,8 +34,8 @@ saves an HTML page as `.rpm`, then prints `Can not load RPM file` /
 `Could not open the file`. Download with `curl -fL` first (or use `install-el.sh`).
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-5.noarch.rpm
-sudo dnf install ./pulsewatch-1.0.0-5.noarch.rpm
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-6.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-6.noarch.rpm
 sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
@@ -51,6 +51,7 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 ## After install
 
 - UI: `http://<host>:3000` (put nginx/Caddy in front for HTTPS and set `BETTER_AUTH_URL` in `/etc/pulsewatch/pulsewatch.env` to the public URL)
+- Reverse proxy example: `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for Better Auth rate limits; optional `PULSEWATCH_TRUSTED_PROXIES` / `HOST=127.0.0.1`)
 - Logs: `journalctl -u pulsewatch -f`
 - Config: `/etc/pulsewatch/pulsewatch.env`
 - Data: PostgreSQL database `pulsewatch` (kept on uninstall)
