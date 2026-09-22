@@ -102,8 +102,8 @@ Pulsewatch and PostgreSQL on one VM, **not** on the machines you watch:
 
 - up to ~150 monitors: 1 vCPU / 2 GB RAM / 20 GB SSD
 - ~150–300 monitors: 2 vCPU / 2 GB RAM / 40 GB SSD (typical small business)
-- ~300–500 monitors: 2 vCPU / 2–4 GB RAM / 40 GB SSD
-- ~500–1000 monitors: 2–4 vCPU / 4 GB RAM / 40 GB SSD
+- ~300–500 monitors: 2 vCPU / 4 GB RAM / 40 GB SSD
+- ~500–1000 monitors: 4 vCPU / 4 GB RAM / 40 GB SSD
 
 Give the box 2 GB RAM before the first install — the compile step is the peak.
 Do not use swap as a substitute for RAM. Local SSD/NVMe, not NFS.
