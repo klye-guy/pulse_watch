@@ -62,14 +62,22 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 | CLI | `pulsectl` |
 | App files | `/opt/pulsewatch` |
 
+**Monitor engine:** On packaged self-host (`PULSEWATCH_SELFHOST=1`), the check
+engine starts when the `pulsewatch` unit boots — you do not need to open the
+dashboard first.
+
 Put nginx or Caddy in front for HTTPS, then set `BETTER_AUTH_URL` in the env
 file to the public URL and `sudo systemctl restart pulsewatch`.
 
-An example nginx site that sets `X-Real-IP` / `X-Forwarded-For` for Better Auth
-rate limits ships at `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf`.
-Copy it into `sites-available`, enable it, and prefer `HOST=127.0.0.1` so only
-the proxy can reach Node on `:3000`. Extra proxy hops: set
-`PULSEWATCH_TRUSTED_PROXIES` (comma-separated) in the env file.
+**Reverse proxy:** Use the sample at
+`/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for
+Better Auth rate limits). Prefer `HOST=127.0.0.1` so only the proxy can reach
+Node on `:3000`. Extra proxy hops: set `PULSEWATCH_TRUSTED_PROXIES` to exact
+proxy IPs (comma/whitespace); loopback is always trusted.
+
+**After restore:** UI restore immediately kicks due checks. `pulsectl restore`
+best-effort runs `systemctl try-restart pulsewatch` when the unit is active
+(may briefly restart the service).
 
 Reinstalls keep `/etc/pulsewatch/pulsewatch.env` and the Postgres database.
 
