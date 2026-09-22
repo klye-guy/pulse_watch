@@ -1,6 +1,8 @@
-# Install Pulsewatch 1.0.0-6
+# Install Pulsewatch 1.0.0-7
 
 Private uptime monitor: login-gated dashboard, systemd service, PostgreSQL.
+**No public email sign-up** — create the first owner (and further accounts) with
+`pulsectl` on the host.
 
 Release assets: [github.com/klye-guy/pulse_watch/releases/tag/v1.0.0](https://github.com/klye-guy/pulse_watch/releases/tag/v1.0.0)
 
@@ -21,8 +23,8 @@ sudo bash install-el.sh
 Or:
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-6.noarch.rpm
-sudo dnf install ./pulsewatch-1.0.0-6.noarch.rpm
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch-1.0.0-7.noarch.rpm
+sudo dnf install ./pulsewatch-1.0.0-7.noarch.rpm
 ```
 
 Use a full path if the RPM is not in the current directory. First install
@@ -36,9 +38,9 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 ## Ubuntu / Debian
 
 ```bash
-curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch_1.0.0-6_all.deb
+curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v1.0.0/pulsewatch_1.0.0-7_all.deb
 sudo apt-get update
-sudo apt install ./pulsewatch_1.0.0-6_all.deb
+sudo apt install ./pulsewatch_1.0.0-7_all.deb
 sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
@@ -56,20 +58,36 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 
 | What | Where |
 | --- | --- |
-| UI | `http://<host>:3000` |
+| UI | `http://127.0.0.1:3000` (loopback; use the reverse proxy for public access) |
 | Config | `/etc/pulsewatch/pulsewatch.env` |
 | Logs | `journalctl -u pulsewatch -f` |
 | CLI | `pulsectl` |
 | App files | `/opt/pulsewatch` |
 
-Put nginx or Caddy in front for HTTPS, then set `BETTER_AUTH_URL` in the env
-file to the public URL and `sudo systemctl restart pulsewatch`.
+**Monitor engine:** On packaged self-host (`PULSEWATCH_SELFHOST=1`), the check
+engine starts when the `pulsewatch` unit boots — you do not need to open the
+dashboard first. Public status pages do not start the engine.
 
-An example nginx site that sets `X-Real-IP` / `X-Forwarded-For` for Better Auth
-rate limits ships at `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf`.
-Copy it into `sites-available`, enable it, and prefer `HOST=127.0.0.1` so only
-the proxy can reach Node on `:3000`. Extra proxy hops: set
-`PULSEWATCH_TRUSTED_PROXIES` (comma-separated) in the env file.
+Fresh installs write `HOST=127.0.0.1` so Node only listens on loopback. Put
+nginx or Caddy in front for **HTTPS**, set `BETTER_AUTH_URL` in
+`/etc/pulsewatch/pulsewatch.env` to the public `https://…` origin (must match
+what browsers use), then `sudo systemctl restart pulsewatch`.
+
+**Reverse proxy:** Use the sample at
+`/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for
+Better Auth rate limits). Keep `HOST=127.0.0.1` so only the proxy can reach
+Node on `:3000`. Extra proxy hops: set `PULSEWATCH_TRUSTED_PROXIES` to exact
+proxy IPs (comma/whitespace); loopback is always trusted.
+
+**Private / reserved targets (SSRF default):** Monitor checks and outbound
+notification URLs (webhook, Discord, Slack) refuse loopback, RFC1918,
+link-local, and cloud metadata addresses. Set
+`PULSEWATCH_ALLOW_PRIVATE_TARGETS=1` only if you intentionally allow those
+targets.
+
+**After restore:** UI restore immediately kicks due checks. `pulsectl restore`
+best-effort runs `systemctl try-restart pulsewatch` when the unit is active
+(may briefly restart the service).
 
 Reinstalls keep `/etc/pulsewatch/pulsewatch.env` and the Postgres database.
 
