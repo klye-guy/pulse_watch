@@ -1,4 +1,5 @@
 import type { Sql } from "@/lib/db";
+import { assertSafeHostname, assertSafeHttpUrl } from "@/lib/monitor/safe-target";
 import type { ChannelRow, ChannelType, NotifyLogRow } from "@/lib/types";
 import { newId } from "@/lib/utils";
 import { redactSecrets } from "./channel-redact.mjs";
@@ -60,6 +61,17 @@ export async function upsertChannel(
     const prev = parseConfig(existing[0]?.config ?? "{}");
     if (!nextConfig.pass && prev.pass) nextConfig.pass = prev.pass;
     if (!nextConfig.token && prev.token) nextConfig.token = prev.token;
+    // Preserve webhook/discord/slack URL when client posts redacted or empty value (#7 + SSRF).
+    if ((!nextConfig.url || nextConfig.url.includes("…")) && prev.url) nextConfig.url = prev.url;
+  }
+  if (
+    (input.type === "discord" || input.type === "slack" || input.type === "webhook") &&
+    nextConfig.url?.trim()
+  ) {
+    await assertSafeHttpUrl(nextConfig.url.trim());
+  }
+  if (input.type === "email" && nextConfig.host?.trim()) {
+    await assertSafeHostname(nextConfig.host.trim());
   }
   const config = JSON.stringify(nextConfig);
   if (input.id) {

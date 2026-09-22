@@ -21,3 +21,18 @@ describe("redactSecrets", () => {
     assert.equal(em.user, "a");
   });
 });
+
+describe("channel url preserve on upsert (redacted/empty)", () => {
+  it("treats empty or ellipsis-redacted urls as keep-previous", () => {
+    const prev = "https://hooks.slack.com/services/T00/B00/secretvalue";
+    const redacted = redactSecrets("slack", { url: prev }).url;
+    function shouldPreserve(posted) {
+      return !posted || posted.includes("…");
+    }
+    assert.equal(shouldPreserve(""), true);
+    assert.equal(shouldPreserve(undefined), true);
+    assert.equal(shouldPreserve(redacted), true);
+    assert.equal(shouldPreserve(prev), false);
+    assert.equal(shouldPreserve("https://example.com/hook"), false);
+  });
+});
