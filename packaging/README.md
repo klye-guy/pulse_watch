@@ -51,7 +51,8 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 ## After install
 
 - UI: `http://<host>:3000` (put nginx/Caddy in front for HTTPS and set `BETTER_AUTH_URL` in `/etc/pulsewatch/pulsewatch.env` to the public URL)
-- Reverse proxy example: `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for Better Auth rate limits; optional `PULSEWATCH_TRUSTED_PROXIES` / `HOST=127.0.0.1`)
+- **Monitor engine:** On packaged self-host (`PULSEWATCH_SELFHOST=1`), the check engine starts when the `pulsewatch` unit boots — no dashboard hit required.
+- Reverse proxy example: `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for Better Auth rate limits). Prefer `HOST=127.0.0.1` so only the proxy reaches Node on `:3000`. Extra hops: `PULSEWATCH_TRUSTED_PROXIES` = exact proxy IPs (comma/whitespace); loopback is always trusted.
 - Logs: `journalctl -u pulsewatch -f`
 - Config: `/etc/pulsewatch/pulsewatch.env`
 - Data: PostgreSQL database `pulsewatch` (kept on uninstall)
@@ -96,6 +97,8 @@ The file includes:
 Heartbeat history is not included. Treat the file as a secret.
 
 Restore **merges** by default: users match on email, monitors/channels/pages match on id. `--replace` deletes existing monitors, channels, and status pages first, then imports. Users are always merged so the last owner cannot be removed.
+
+**After restore:** UI restore immediately kicks due checks in-process. `pulsectl restore` cannot call the engine directly, so when `pulsewatch.service` is active it best-effort runs `systemctl try-restart pulsewatch` (may briefly restart the unit); otherwise the engine starts on the next service boot.
 
 ## VM size
 
