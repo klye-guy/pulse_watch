@@ -254,20 +254,40 @@ fix_pg_hba() {
     log "Could not find pg_hba.conf — password auth may fail on 127.0.0.1"
     return 0
   fi
+
+  # AppSec #8: never open scram password auth for all local roles — pulsewatch DB/role only.
+  # Also strip broad host-all lines left by older installs (even if our marker is present).
+  local changed=0
+  if grep -qE '^[[:space:]]*host[[:space:]]+all[[:space:]]+all[[:space:]]+(127\.0\.0\.1/32|::1/128)[[:space:]]+' "${hba}"; then
+    log "Tightening pg_hba: removing broad localhost host-all rules (${hba})"
+    cp -a "${hba}" "${hba}.pulsewatch.bak"
+    local stripped
+    stripped="$(mktemp)"
+    grep -vE '^[[:space:]]*host[[:space:]]+all[[:space:]]+all[[:space:]]+(127\.0\.0\.1/32|::1/128)[[:space:]]+' "${hba}" > "${stripped}"
+    mv "${stripped}" "${hba}"
+    chown postgres:postgres "${hba}"
+    chmod 600 "${hba}"
+    changed=1
+  fi
+
   if grep -q 'Pulsewatch local password auth' "${hba}"; then
+    if [[ "${changed}" -eq 1 ]]; then
+      local unit
+      unit="$(pg_unit || echo postgresql)"
+      systemctl reload "${unit}" >/dev/null 2>&1 || systemctl restart "${unit}"
+    fi
     return 0
   fi
-  log "Allowing password auth for pulsewatch on localhost (${hba})"
+
+  log "Allowing password auth for pulsewatch role/DB on localhost only (${hba})"
   cp -a "${hba}" "${hba}.pulsewatch.bak"
   local tmp
   tmp="$(mktemp)"
   cat > "${tmp}" <<'HBA'
-# Pulsewatch local password auth
+# Pulsewatch local password auth (role+DB scoped — AppSec #8)
 local   pulsewatch      pulsewatch                              scram-sha-256
 host    pulsewatch      pulsewatch      127.0.0.1/32            scram-sha-256
 host    pulsewatch      pulsewatch      ::1/128                 scram-sha-256
-host    all             all             127.0.0.1/32            scram-sha-256
-host    all             all             ::1/128                 scram-sha-256
 HBA
   cat "${hba}" >> "${tmp}"
   mv "${tmp}" "${hba}"
