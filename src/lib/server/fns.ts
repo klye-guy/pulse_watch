@@ -23,9 +23,17 @@ export const getAccessState = createServerFn({ method: "GET" })
 
 export const getSetupState = createServerFn({ method: "GET" }).handler(async () => {
   const { getSql } = await import("@/lib/db");
+  const { brokerOAuthConfigured } = await import("@/lib/auth/server");
   const sql = await getSql();
   const rows = await sql<{ n: number }>`select count(*)::int as n from members`;
-  return { needsSetup: Number(rows[0]?.n ?? 0) === 0 };
+  const needsSetup = Number(rows[0]?.n ?? 0) === 0;
+  return {
+    needsSetup,
+    // Public email sign-up is always disabled server-side (Kevin #1).
+    allowPublicSignup: false,
+    // Broker OAuth UI only when real GROK_AUTH_* (or preview) is configured (Kevin #2).
+    oauthEnabled: brokerOAuthConfigured,
+  };
 });
 
 export const listMonitorsFn = createServerFn({ method: "GET" })
@@ -255,8 +263,8 @@ export const getPublicStatusFn = createServerFn({ method: "GET" })
     }): Promise<{ title: string; description: string; monitors: PublicStatusMonitor[] } | null> => {
       const { getSql } = await import("@/lib/db");
       const { getPublicPage } = await import("./pages");
-      const { kickDueChecks } = await import("@/lib/monitor/engine");
-      kickDueChecks();
+      // Do not kickDueChecks on the public status path (Kevin AppSec #5) —
+      // engine boot / authenticated dashboard paths own scheduling.
       const sql = await getSql();
       return getPublicPage(sql, slug);
     },

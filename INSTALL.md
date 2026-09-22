@@ -66,14 +66,20 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 engine starts when the `pulsewatch` unit boots — you do not need to open the
 dashboard first.
 
-Put nginx or Caddy in front for HTTPS, then set `BETTER_AUTH_URL` in the env
-file to the public URL and `sudo systemctl restart pulsewatch`.
+Fresh installs write `HOST=127.0.0.1` so Node only listens on loopback. Put
+nginx or Caddy in front for **HTTPS**, set `BETTER_AUTH_URL` in
+`/etc/pulsewatch/pulsewatch.env` to the public `https://…` origin (must match
+what browsers use), then `sudo systemctl restart pulsewatch`.
 
 **Reverse proxy:** Use the sample at
 `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for
-Better Auth rate limits). Prefer `HOST=127.0.0.1` so only the proxy can reach
+Better Auth rate limits). Keep `HOST=127.0.0.1` so only the proxy can reach
 Node on `:3000`. Extra proxy hops: set `PULSEWATCH_TRUSTED_PROXIES` to exact
 proxy IPs (comma/whitespace); loopback is always trusted.
+
+**Private monitor targets:** By default checks refuse loopback, RFC1918,
+link-local, and cloud metadata IPs. Set `PULSEWATCH_ALLOW_PRIVATE_TARGETS=1`
+only if you intentionally monitor private hosts.
 
 **After restore:** UI restore immediately kicks due checks. `pulsectl restore`
 best-effort runs `systemctl try-restart pulsewatch` when the unit is active

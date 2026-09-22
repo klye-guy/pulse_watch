@@ -1,6 +1,7 @@
 import type { Sql } from "@/lib/db";
 import type { Beat, HeartbeatStatus, MonitorSummary, MonitorType } from "@/lib/types";
 import { newId } from "@/lib/utils";
+import { assertSafeTargetInput } from "@/lib/monitor/safe-target";
 
 type MonitorRow = {
   id: string;
@@ -190,6 +191,11 @@ export async function upsertMonitor(
   const id = input.id ?? newId();
   const name = input.name.trim();
   if (!name) throw new Error("Name is required");
+  assertSafeTargetInput({
+    type: input.type,
+    url: input.url,
+    hostname: input.hostname,
+  });
   const maxRetries = Math.max(0, Math.min(10, Math.floor(input.maxRetries ?? 2)));
   const retryIntervalSec = Math.max(5, Math.min(300, Math.floor(input.retryIntervalSec ?? 20)));
   const resendIntervalSec = Math.max(0, Math.min(86_400, Math.floor(input.resendIntervalSec ?? 0)));
