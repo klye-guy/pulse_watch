@@ -75,6 +75,26 @@ test("logSsrRouteError dedupes via SSR_ERROR_LOGGED mark", () => {
   }
 });
 
+
+test("wasSsrErrorLogged sees mark through Error.cause (h3 wrap)", () => {
+  const lines = [];
+  const original = console.error;
+  console.error = (...args) => {
+    lines.push(String(args[0]));
+  };
+  try {
+    const originalErr = new Error("root");
+    logSsrRouteError({ method: "GET", path: "/a" }, originalErr, "grok-pwa-ssr-error");
+    const wrapped = new Error("HTTPError");
+    wrapped.cause = originalErr;
+    logSsrRouteError({ method: "GET", path: "/a" }, wrapped, "nitro-ssr-error");
+    assert.equal(lines.length, 1);
+    assert.equal(wasSsrErrorLogged(wrapped), true);
+  } finally {
+    console.error = original;
+  }
+});
+
 test("markSsrErrorLogged is idempotent for second logger", () => {
   const err = new Error("once");
   markSsrErrorLogged(err);

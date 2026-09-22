@@ -86,9 +86,16 @@ export function markSsrErrorLogged(err) {
 }
 
 export function wasSsrErrorLogged(err) {
-  return (
-    err != null && typeof err === "object" && Boolean(err[SSR_ERROR_LOGGED])
-  );
+  // h3 wraps thrown Errors in a fresh HTTPError before the Nitro "error" hook,
+  // so the SSR_ERROR_LOGGED mark on the original must still count via .cause.
+  let current = err;
+  const seen = new Set();
+  while (current != null && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    if (Boolean(current[SSR_ERROR_LOGGED])) return true;
+    current = current.cause;
+  }
+  return false;
 }
 
 /** Structured journal line for opaque SSR 500s (path + cause chain). */
