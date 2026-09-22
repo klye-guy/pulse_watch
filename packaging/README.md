@@ -1,7 +1,8 @@
 # Pulsewatch Linux install
 
 Pulsewatch is a private Uptime Kuma-style monitor. The dashboard is login-only.
-Users are created in the web UI or with `pulsectl` on the host.
+**There is no public email sign-up.** Create the first owner (and further
+accounts) with `pulsectl` on the host.
 
 Packages (version **1.0.0-6**):
 
@@ -12,7 +13,7 @@ Packages (version **1.0.0-6**):
 
 First install compiles the server on the host (a few minutes, needs outbound HTTPS
 to npmjs.org and, if Node 22 is missing, nodejs.org). After that it is a systemd
-service on port 3000.
+service on port 3000 (bound to loopback by default).
 
 ## Ubuntu / Debian (apt)
 
@@ -51,9 +52,9 @@ sudo pulsectl user add admin@company.com --name Admin --role owner --password '*
 ## After install
 
 - UI bind: fresh installs set `HOST=127.0.0.1` (loopback only). Put nginx/Caddy in front for **HTTPS**, set `BETTER_AUTH_URL` in `/etc/pulsewatch/pulsewatch.env` to the public `https://…` origin, then restart `pulsewatch`.
-- **Monitor engine:** On packaged self-host (`PULSEWATCH_SELFHOST=1`), the check engine starts when the `pulsewatch` unit boots — no dashboard hit required.
+- **Monitor engine:** On packaged self-host (`PULSEWATCH_SELFHOST=1`), the check engine starts when the `pulsewatch` unit boots — no dashboard hit required. Public status pages do not start the engine.
 - Reverse proxy example: `/opt/pulsewatch/packaging/linux/nginx-pulsewatch.conf` (sets `X-Real-IP` for Better Auth rate limits). Keep `HOST=127.0.0.1` so only the proxy reaches Node on `:3000`. Extra hops: `PULSEWATCH_TRUSTED_PROXIES` = exact proxy IPs (comma/whitespace); loopback is always trusted.
-- **SSRF default:** monitor checks block private/reserved targets unless `PULSEWATCH_ALLOW_PRIVATE_TARGETS=1`.
+- **SSRF default:** monitor checks and outbound notification URLs (webhook, Discord, Slack) block private/reserved/metadata targets unless `PULSEWATCH_ALLOW_PRIVATE_TARGETS=1`. Discord/Slack/webhook `url` values are redacted in the UI.
 - Logs: `journalctl -u pulsewatch -f`
 - Config: `/etc/pulsewatch/pulsewatch.env`
 - Data: PostgreSQL database `pulsewatch` (kept on uninstall)

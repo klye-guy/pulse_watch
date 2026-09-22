@@ -38,13 +38,13 @@ https://github.com/klye-guy/pulse_watch/releases/tag/v1.0.0
 sudo pulsectl user add admin@company.com --name Admin --role owner --password '********'
 ```
 
-4. Open the UI at `http://<host>:3000`. For HTTPS, place nginx or Caddy in front, set `BETTER_AUTH_URL` in `/etc/pulsewatch/pulsewatch.env` to the public URL, and restart `pulsewatch`.
+4. Fresh installs bind Node to loopback (`HOST=127.0.0.1`). Put nginx or Caddy in front for HTTPS, set `BETTER_AUTH_URL` to the public `https://…` origin, and restart `pulsewatch`. Local UI: `http://127.0.0.1:3000`.
 
 After install reference:
 
 | Item | Location |
 | --- | --- |
-| UI | `http://<host>:3000` |
+| UI | `http://127.0.0.1:3000` (public access via reverse proxy) |
 | Config | `/etc/pulsewatch/pulsewatch.env` |
 | Logs | `journalctl -u pulsewatch -f` |
 | CLI | `pulsectl` |
@@ -52,12 +52,13 @@ After install reference:
 
 ## System overview
 
-- **Service:** `pulsewatch` (systemd), default listen port **3000**
+- **Service:** `pulsewatch` (systemd), default listen port **3000** on loopback (`HOST=127.0.0.1` on fresh installs)
 - **Data store:** PostgreSQL database `pulsewatch` (retained across package remove unless purged)
-- **Auth:** Better Auth; roles `owner`, `admin`, `editor`, `viewer`
-- **Checks:** Concurrent pool (default 48 workers), retries before confirmed down, alerts off the check path; on self-host the engine starts at unit boot (see [INSTALL.md](INSTALL.md))
-- **Proxy:** Prefer `HOST=127.0.0.1` behind nginx/Caddy; optional `PULSEWATCH_TRUSTED_PROXIES` (exact IPs; loopback always trusted) — [packaging/linux/nginx-pulsewatch.conf](packaging/linux/nginx-pulsewatch.conf)
-- **Notifications:** SMTP, webhook, Discord, Slack, Telegram
+- **Auth:** Better Auth; roles `owner`, `admin`, `editor`, `viewer`; **no public email sign-up** (accounts via `pulsectl`)
+- **Checks:** Concurrent pool (default 48 workers), retries before confirmed down, alerts off the check path; on self-host the engine starts at unit boot (see [INSTALL.md](INSTALL.md)); public status pages do not start the engine
+- **Proxy:** Keep `HOST=127.0.0.1` behind nginx/Caddy; optional `PULSEWATCH_TRUSTED_PROXIES` (exact IPs; loopback always trusted) — [packaging/linux/nginx-pulsewatch.conf](packaging/linux/nginx-pulsewatch.conf)
+- **SSRF default:** monitors and outbound notification URLs deny private/reserved/metadata targets unless `PULSEWATCH_ALLOW_PRIVATE_TARGETS=1`
+- **Notifications:** SMTP, webhook, Discord, Slack, Telegram (webhook URLs redacted in the UI)
 - **Backup:** JSON export via Settings or `pulsectl backup` / `pulsectl restore` (treat as secret; heartbeat history not included; CLI restore may `try-restart` the unit)
 
 Pulsewatch is intended to remain reliable past the scale where SQLite-based monitors typically slow down (~200–500 monitors). See packaging README for concurrency, retry, and email behavior.
