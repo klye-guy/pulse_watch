@@ -1,6 +1,7 @@
 /**
  * Nitro plugin: log request URL on server errors that bypass document
  * middleware (API / non-HTML / early pipeline failures).
+ * Shares dedupe with grok-pwa middleware via SSR_ERROR_LOGGED on the error.
  *
  * Auto-registered because vite.config.ts sets `serverDir: "./server"` —
  * Nitro v3 scans `server/plugins/*` under that directory.
