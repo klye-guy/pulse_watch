@@ -3,20 +3,40 @@
 set -euo pipefail
 ROOT="${PULSEWATCH_HOME:-/opt/pulsewatch}"
 SERVER="${ROOT}/.output/server/index.mjs"
+ENV_FILE="/etc/pulsewatch/pulsewatch.env"
+
+check() {
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    echo "pulsewatch: missing ${ENV_FILE}" >&2
+    echo "First-boot setup did not finish. Run:" >&2
+    echo "  sudo dnf install -y postgresql-server postgresql" >&2
+    echo "  sudo bash ${ROOT}/packaging/linux/configure-instance.sh" >&2
+    echo "Log: sudo tail -n 80 /var/log/pulsewatch-install.log" >&2
+    exit 1
+  fi
+  if [[ ! -f "${SERVER}" ]]; then
+    echo "pulsewatch: missing ${SERVER}. The first-install build may have failed." >&2
+    echo "Run: sudo bash ${ROOT}/packaging/linux/configure-instance.sh" >&2
+    echo "Log: sudo tail -n 80 /var/log/pulsewatch-install.log" >&2
+    exit 1
+  fi
+  if [[ ! -x "${ROOT}/runtime/bin/node" ]] && ! command -v node >/dev/null 2>&1; then
+    echo "pulsewatch: node not found. Re-run configure-instance.sh" >&2
+    exit 1
+  fi
+}
+
+if [[ "${1:-}" == "--check" ]]; then
+  check
+  exit 0
+fi
+
+check
 
 if [[ -x "${ROOT}/runtime/bin/node" ]]; then
   NODE="${ROOT}/runtime/bin/node"
-elif command -v node >/dev/null 2>&1; then
-  NODE="$(command -v node)"
 else
-  echo "pulsewatch: node not found. Reinstall the package or install Node.js 22." >&2
-  exit 1
-fi
-
-if [[ ! -f "${SERVER}" ]]; then
-  echo "pulsewatch: missing ${SERVER}. The first-install build may have failed." >&2
-  echo "Check journalctl -u pulsewatch and /var/log/pulsewatch-install.log" >&2
-  exit 1
+  NODE="$(command -v node)"
 fi
 
 cd "${ROOT}"

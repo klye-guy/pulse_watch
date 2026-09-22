@@ -5,7 +5,7 @@
 set -euo pipefail
 
 VERSION="1.0.0"
-RELEASE="4"
+RELEASE="5"
 TAG="v${VERSION}"
 RPM="pulsewatch-${VERSION}-${RELEASE}.noarch.rpm"
 BASE="https://github.com/klye-guy/pulse_watch/releases/download/${TAG}"

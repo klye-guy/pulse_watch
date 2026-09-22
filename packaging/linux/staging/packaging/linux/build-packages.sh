@@ -5,6 +5,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "${HERE}/../.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "${HERE}/version")"
+RELEASE="5"
 STAGE="${HERE}/staging"
 DIST="${ROOT}/artifacts/releases"
 PUBLIC="${ROOT}/public/releases"
@@ -26,7 +27,7 @@ fi
 rm -rf "${STAGE}"
 mkdir -p "${STAGE}" "${DIST}" "${PUBLIC}"
 
-log "Staging source (v${VERSION})"
+log "Staging source (v${VERSION}-${RELEASE})"
 tar -C "${ROOT}" \
   --exclude-from="${HERE}/excludes.txt" \
   --exclude='packaging/linux/staging' \
@@ -42,6 +43,8 @@ else
   printf '%s\n' '{"deploy":{"database":true}}' > "${STAGE}/.grok/app-env.json"
 fi
 
+find "${STAGE}" -type d -exec chmod 755 {} +
+find "${STAGE}" -type f -exec chmod 644 {} +
 chmod +x \
   "${STAGE}/packaging/install.sh" \
   "${STAGE}/packaging/linux/configure-instance.sh" \
@@ -51,9 +54,13 @@ chmod +x \
   "${STAGE}/packaging/linux/pulsewatch-server" \
   "${STAGE}/packaging/linux/pulsectl" \
   "${STAGE}/packaging/linux/build-packages.sh" \
+  "${STAGE}/packaging/linux/install-el.sh" \
+  "${STAGE}/packaging/linux/posttrans.sh" \
   "${STAGE}/bin/pulsectl.mjs"
 
 TAR_NAME="pulsewatch-${VERSION}"
+DEB_NAME="pulsewatch_${VERSION}-${RELEASE}_all.deb"
+RPM_NAME="pulsewatch-${VERSION}-${RELEASE}.noarch.rpm"
 TAR_DIR="$(mktemp -d)"
 mkdir -p "${TAR_DIR}/${TAR_NAME}"
 tar -C "${STAGE}" -cf - . | tar --no-same-owner -C "${TAR_DIR}/${TAR_NAME}" -xf -
@@ -64,15 +71,66 @@ rm -rf "${TAR_DIR}"
 sed "s/\${VERSION}/${VERSION}/g" "${HERE}/nfpm.yaml" > "${HERE}/nfpm.gen.yaml"
 
 log "Building .deb"
-(cd "${HERE}" && "${NFPM_BIN}" pkg --packager deb --config nfpm.gen.yaml --target "${DIST}")
+(cd "${HERE}" && "${NFPM_BIN}" pkg --packager deb --config nfpm.gen.yaml --target "${DIST}/${DEB_NAME}")
 log "Building .rpm"
-(cd "${HERE}" && "${NFPM_BIN}" pkg --packager rpm --config nfpm.gen.yaml --target "${DIST}")
+(cd "${HERE}" && "${NFPM_BIN}" pkg --packager rpm --config nfpm.gen.yaml --target "${DIST}/${RPM_NAME}")
 
 rm -f "${HERE}/nfpm.gen.yaml"
 
 (
   cd "${DIST}"
-  sha256sum pulsewatch*.tar.gz pulsewatch*.deb pulsewatch*.rpm > SHA256SUMS
+  cp "${HERE}/install-el.sh" install-el.sh
+  chmod +x install-el.sh
+  sha256sum "${TAR_NAME}.tar.gz" "${DEB_NAME}" "${RPM_NAME}" install-el.sh > SHA256SUMS
+  cp "${ROOT}/INSTALL.md" INSTALL.md
+  cat > README.txt <<EOF
+Pulsewatch ${VERSION}-${RELEASE} Linux packages
+
+  Rocky / Alma / RHEL / Fedora — download then install from the local file.
+  Do not pass the GitHub URL to dnf (it often saves an HTML page as .rpm).
+
+      curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v${VERSION}/${RPM_NAME}
+      sudo dnf install ./${RPM_NAME}
+
+  Or run the helper (verifies RPM magic + sha256):
+
+      curl -fL -O https://github.com/klye-guy/pulse_watch/releases/download/v${VERSION}/install-el.sh
+      sudo bash install-el.sh
+
+  Ubuntu / Debian:
+
+      sudo apt-get update
+      sudo apt install ./${DEB_NAME}
+
+  Source tarball (works on Rocky if the RPM will not load):
+
+      tar -xzf ${TAR_NAME}.tar.gz
+      cd ${TAR_NAME}
+      sudo bash packaging/install.sh
+
+Then:
+  sudo pulsectl user add admin@company.com --name Admin --role owner
+  Open http://<this-host>:3000
+
+Verify:
+  sha256sum -c SHA256SUMS
+EOF
+)
+
+# One-file bundle for transferring to a VM
+BUNDLE_NAME="pulsewatch-${VERSION}-linux-packages.tar.gz"
+log "Writing ${DIST}/${BUNDLE_NAME}"
+(
+  cd "${DIST}"
+  tar -czf "${BUNDLE_NAME}" \
+    "${TAR_NAME}.tar.gz" \
+    "${DEB_NAME}" \
+    "${RPM_NAME}" \
+    install-el.sh \
+    SHA256SUMS \
+    README.txt \
+    INSTALL.md
+  sha256sum "${BUNDLE_NAME}" >> SHA256SUMS
 )
 
 # Preview / in-app downloads
@@ -82,4 +140,5 @@ cp -a "${DIST}/." "${PUBLIC}/"
 
 log "Artifacts:"
 ls -lh "${DIST}"
+echo
 cat "${DIST}/SHA256SUMS"

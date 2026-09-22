@@ -2,7 +2,7 @@ name: pulsewatch
 arch: all
 platform: linux
 version: ${VERSION}
-release: "1"
+release: "5"
 section: admin
 priority: optional
 maintainer: "Pulsewatch <pulsewatch@localhost>"
@@ -11,20 +11,22 @@ description: |-
   HTTP, TCP, ping, DNS and keyword checks, retries before alerting,
   email and webhook notifications, multi-user roles, and a systemd service.
 vendor: Pulsewatch
-homepage: https://github.com
+homepage: https://github.com/klye-guy/pulse_watch
 license: MIT
 contents:
   - src: ./staging
     dst: /opt/pulsewatch
     type: tree
-    file_info:
-      mode: 0755
   - src: ../pulsewatch.service
     dst: /usr/lib/systemd/system/pulsewatch.service
     file_info:
       mode: 0644
   - src: ./pulsectl
     dst: /usr/bin/pulsectl
+    file_info:
+      mode: 0755
+  - src: ./pulsewatch-server
+    dst: /opt/pulsewatch/bin/pulsewatch-server
     file_info:
       mode: 0755
   - src: ../../LICENSE
@@ -51,6 +53,14 @@ scripts:
   postinstall: ./postinst.sh
   preremove: ./prerm.sh
   postremove: ./postrm.sh
+rpm:
+  # Explicit noarch + gzip so Rocky 8/9/10 librpm will load the file.
+  arch: noarch
+  group: Applications/System
+  compression: gzip
+  packager: Pulsewatch <pulsewatch@localhost>
+  scripts:
+    posttrans: ./posttrans.sh
 overrides:
   deb:
     depends:

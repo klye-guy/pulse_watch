@@ -54,6 +54,14 @@ run_as() {
   fi
 }
 
+# Safe under `set -o pipefail`: `tr | head` otherwise exits 141 (SIGPIPE) and aborts install.
+rand_alnum() {
+  local n="${1:?}"
+  ( set +o pipefail
+    tr -dc 'A-Za-z0-9' </dev/urandom | head -c "${n}"
+  )
+}
+
 node_major() {
   local bin="$1"
   [[ -x "${bin}" ]] || return 1
@@ -175,12 +183,24 @@ pg_setup_bin() {
 
 cluster_initialized() {
   local d
-  for d in /var/lib/pgsql/data /var/lib/pgsql/*/data /var/lib/pgsql/*/data/base; do
-    if [[ -f "${d}/PG_VERSION" ]] || [[ -f "${d}/../PG_VERSION" && "${d}" == */base ]]; then
+  # RHEL / Fedora: /var/lib/pgsql/data or /var/lib/pgsql/<ver>/data
+  # Debian / Ubuntu: /var/lib/postgresql/<ver>/main
+  for d in \
+    /var/lib/pgsql/data \
+    /var/lib/pgsql/*/data \
+    /var/lib/postgresql/*/main
+  do
+    if [[ -f "${d}/PG_VERSION" ]]; then
       return 0
     fi
   done
-  [[ -f /var/lib/pgsql/data/PG_VERSION ]]
+  # Older glob leftover: */data/base means the parent data dir may hold PG_VERSION
+  for d in /var/lib/pgsql/*/data/base; do
+    if [[ -e "${d}" && -f "${d}/../PG_VERSION" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 ensure_postgres_packages() {
@@ -221,7 +241,12 @@ fix_pg_hba() {
   psql_bin="$(command -v psql || echo /usr/bin/psql)"
   hba="$(run_as postgres "${psql_bin}" -d postgres -Atqc 'show hba_file' 2>/dev/null || true)"
   if [[ -z "${hba}" || ! -f "${hba}" ]]; then
-    for hba in /var/lib/pgsql/data/pg_hba.conf /var/lib/pgsql/*/data/pg_hba.conf; do
+    for hba in \
+      /var/lib/pgsql/data/pg_hba.conf \
+      /var/lib/pgsql/*/data/pg_hba.conf \
+      /etc/postgresql/*/main/pg_hba.conf \
+      /var/lib/postgresql/*/main/pg_hba.conf
+    do
       [[ -f "${hba}" ]] && break
     done
   fi
@@ -257,12 +282,15 @@ ensure_postgres_cluster() {
   ensure_postgres_packages || true
   if ! id -u postgres >/dev/null 2>&1; then
     echo "The postgres system user is missing. Install PostgreSQL:" >&2
-    echo "  sudo dnf install -y postgresql-server postgresql" >&2
-    echo "  sudo bash ${INSTALL_DIR}/packaging/linux/configure-instance.sh" >&2
+    echo "  Debian/Ubuntu: sudo apt install postgresql postgresql-contrib" >&2
+    echo "  Rocky/RHEL:    sudo dnf install -y postgresql-server postgresql" >&2
+    echo "Then: sudo bash ${INSTALL_DIR}/packaging/linux/configure-instance.sh" >&2
     exit 1
   fi
   if ! command -v psql >/dev/null 2>&1 && [[ ! -x /usr/bin/psql ]]; then
-    echo "psql is missing. Install the client:  sudo dnf install -y postgresql" >&2
+    echo "psql is missing. Install the client:" >&2
+    echo "  Debian/Ubuntu: sudo apt install postgresql-client" >&2
+    echo "  Rocky/RHEL:    sudo dnf install -y postgresql" >&2
     exit 1
   fi
 
@@ -273,12 +301,46 @@ ensure_postgres_cluster() {
   if ! cluster_initialized; then
     log "Initializing PostgreSQL cluster"
     if [[ -n "${setup}" ]]; then
+      # RHEL / Alma / Rocky / Fedora
       if ! "${setup}" --initdb; then
         "${setup}" initdb || true
       fi
+    elif command -v pg_createcluster >/dev/null 2>&1; then
+      # Debian / Ubuntu — packages usually create 16/main already; create one if not
+      local ver
+      ver="$(ls /usr/lib/postgresql 2>/dev/null | sort -V | tail -1 || true)"
+      if [[ -z "${ver}" ]]; then
+        echo "No PostgreSQL server binaries under /usr/lib/postgresql. Install: sudo apt install postgresql" >&2
+        exit 1
+      fi
+      log "Creating Debian/Ubuntu cluster ${ver}/main via pg_createcluster"
+      pg_createcluster "${ver}" main || true
     else
-      echo "postgresql-setup not found. Install postgresql-server." >&2
+      echo "Neither postgresql-setup nor pg_createcluster found." >&2
+      echo "  Debian/Ubuntu: sudo apt install postgresql postgresql-contrib" >&2
+      echo "  Rocky/RHEL:    sudo dnf install -y postgresql-server postgresql" >&2
+      echo "Then re-run: sudo bash ${INSTALL_DIR}/packaging/linux/configure-instance.sh" >&2
       exit 1
+    fi
+    if ! cluster_initialized; then
+      # postgresql-setup needs a working D-Bus (normal on VMs; often missing in
+      # minimal containers). Fall back to initdb so install still works.
+      local datadir="/var/lib/pgsql/data"
+      local initdb_bin
+      initdb_bin="$(command -v initdb || true)"
+      [[ -z "${initdb_bin}" && -x /usr/bin/initdb ]] && initdb_bin=/usr/bin/initdb
+      if [[ -n "${initdb_bin}" ]]; then
+        log "postgresql-setup did not create a cluster — running initdb at ${datadir}"
+        mkdir -p /var/lib/pgsql
+        chown postgres:postgres /var/lib/pgsql
+        if [[ -d "${datadir}" ]] && [[ ! -f "${datadir}/PG_VERSION" ]]; then
+          # Package ships an empty placeholder directory.
+          find "${datadir}" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+        fi
+        if [[ ! -f "${datadir}/PG_VERSION" ]]; then
+          run_as postgres "${initdb_bin}" -D "${datadir}"
+        fi
+      fi
     fi
     if ! cluster_initialized; then
       echo "PostgreSQL initdb did not create a data directory. See /var/log/pulsewatch-install.log" >&2
@@ -291,6 +353,18 @@ ensure_postgres_cluster() {
   if [[ -z "${unit}" ]]; then
     unit="postgresql"
   fi
+
+  # RHEL packages expect /var/run/postgresql for the unix socket; the dir is on
+  # tmpfs and may not exist yet right after package install (tmpfiles not run).
+  for sockdir in /var/run/postgresql /run/postgresql; do
+    mkdir -p "${sockdir}"
+    chown postgres:postgres "${sockdir}" 2>/dev/null || true
+    chmod 755 "${sockdir}" || true
+  done
+  if command -v systemd-tmpfiles >/dev/null 2>&1; then
+    systemd-tmpfiles --create /usr/lib/tmpfiles.d/postgresql*.conf >/dev/null 2>&1 || true
+  fi
+
   log "Starting ${unit}"
   systemctl enable "${unit}"
   if ! systemctl start "${unit}"; then
@@ -313,9 +387,12 @@ ensure_db() {
   fi
   local pass sql psql_bin
   psql_bin="$(command -v psql || echo /usr/bin/psql)"
-  pass="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 28)"
+  pass="$(rand_alnum 28)"
   sql="$(mktemp)"
+  # RHEL/Rocky PG 13 still defaults password_encryption=md5; our pg_hba uses
+  # scram-sha-256, so an md5-stored password always fails TCP auth. Force SCRAM.
   cat > "${sql}" <<SQL
+SET password_encryption = 'scram-sha-256';
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'pulsewatch') THEN
@@ -328,6 +405,9 @@ END
 SELECT 'CREATE DATABASE pulsewatch OWNER pulsewatch'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'pulsewatch')\\gexec
 SQL
+  # mktemp files are 0600 root:root — postgres cannot -f them without a grant.
+  chown postgres:postgres "${sql}"
+  chmod 600 "${sql}"
   log "Creating role and database 'pulsewatch'"
   run_as postgres "${psql_bin}" -v ON_ERROR_STOP=1 -d postgres -f "${sql}"
   rm -f "${sql}"
@@ -356,7 +436,7 @@ write_env() {
     return 0
   fi
   local secret db_pass
-  secret="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)"
+  secret="$(rand_alnum 48)"
   db_pass="${PULSEWATCH_GENERATED_DB_PASS:-}"
   if [[ -z "${db_pass}" ]]; then
     echo "internal error: database password missing" >&2
@@ -464,5 +544,5 @@ echo "Pulsewatch is installed."
 echo "  URL:  http://<this-host>:${PORT}"
 echo "  Logs: journalctl -u pulsewatch -f"
 echo "Create the first owner if you have not signed in yet:"
-echo "  sudo pulsectl user add admin@example.com --name Admin --role owner"
+echo "  sudo pulsectl user add admin@example.com --name Admin --role owner --password '********'"
 echo

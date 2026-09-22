@@ -3,13 +3,17 @@ Description=Pulsewatch uptime monitor
 Documentation=file:///usr/share/doc/pulsewatch/README.md
 After=network-online.target postgresql.service postgresql-14.service postgresql-15.service postgresql-16.service postgresql-17.service
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
 User=pulsewatch
 Group=pulsewatch
-EnvironmentFile=/etc/pulsewatch/pulsewatch.env
+# Leading '-' means missing file does not fail systemd parsing; ExecStartPre explains it.
+EnvironmentFile=-/etc/pulsewatch/pulsewatch.env
 WorkingDirectory=/opt/pulsewatch
+ExecStartPre=/opt/pulsewatch/bin/pulsewatch-server --check
 ExecStart=/opt/pulsewatch/bin/pulsewatch-server
 Restart=on-failure
 RestartSec=5
