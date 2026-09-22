@@ -25,6 +25,7 @@ export default function startEnginePlugin(_nitroApp?: NitroApp): void {
   void import("../../src/lib/monitor/engine")
     .then((mod) => {
       mod.kickDueChecks();
+      console.info("[pulsewatch] monitor engine kicked on boot");
     })
     .catch((err) => {
       console.error("[pulsewatch] monitor engine failed to start on boot:", err);
