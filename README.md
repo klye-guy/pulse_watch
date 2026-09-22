@@ -55,9 +55,10 @@ After install reference:
 - **Service:** `pulsewatch` (systemd), default listen port **3000**
 - **Data store:** PostgreSQL database `pulsewatch` (retained across package remove unless purged)
 - **Auth:** Better Auth; roles `owner`, `admin`, `editor`, `viewer`
-- **Checks:** Concurrent pool (default 48 workers), retries before confirmed down, alerts off the check path
+- **Checks:** Concurrent pool (default 48 workers), retries before confirmed down, alerts off the check path; on self-host the engine starts at unit boot (see [INSTALL.md](INSTALL.md))
+- **Proxy:** Prefer `HOST=127.0.0.1` behind nginx/Caddy; optional `PULSEWATCH_TRUSTED_PROXIES` (exact IPs; loopback always trusted) — [packaging/linux/nginx-pulsewatch.conf](packaging/linux/nginx-pulsewatch.conf)
 - **Notifications:** SMTP, webhook, Discord, Slack, Telegram
-- **Backup:** JSON export via Settings or `pulsectl backup` / `pulsectl restore` (treat as secret; heartbeat history not included)
+- **Backup:** JSON export via Settings or `pulsectl backup` / `pulsectl restore` (treat as secret; heartbeat history not included; CLI restore may `try-restart` the unit)
 
 Pulsewatch is intended to remain reliable past the scale where SQLite-based monitors typically slow down (~200–500 monitors). See packaging README for concurrency, retry, and email behavior.
 
