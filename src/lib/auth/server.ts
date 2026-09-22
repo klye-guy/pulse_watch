@@ -75,16 +75,26 @@ const env = (key: string): string | undefined => {
 // provisions auth; set it to "false" to force auth off everywhere (dev user).
 const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 
-// Broker federation creds: the deployer injects a per-app client when deployed;
-// otherwise fall back to the shared live-preview client, which the broker accepts
-// for any `*.grok-sandbox.com` callback (see `./preview`).
+// Packaged self-host must never fall back to the shared preview OAuth client
+// (Kevin AppSec #2). Preview/dev still uses the baked preview client when
+// GROK_AUTH_* is unset.
+const isSelfHost = env("PULSEWATCH_SELFHOST") === "1";
 const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
-const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
-const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
+const grokClientId =
+  env("GROK_AUTH_CLIENT_ID") ?? (isSelfHost ? undefined : PREVIEW_CLIENT_ID);
+const grokClientSecret =
+  env("GROK_AUTH_CLIENT_SECRET") ?? (isSelfHost ? undefined : PREVIEW_CLIENT_SECRET);
 
-/** True when federated sign-in is active (real auth is enforced). */
-export const authConfigured =
+/** Broker OAuth is active only with real GROK_AUTH_* (or preview fallback off self-host). */
+export const brokerOAuthConfigured =
   !authDisabled && Boolean(grokClientId && grokClientSecret);
+
+/**
+ * True when real auth is enforced: broker OAuth and/or local email/password.
+ * Split from broker OAuth so self-host email/password works without preview secrets.
+ */
+export const authConfigured =
+  !authDisabled && (brokerOAuthConfigured || emailAndPasswordEnabled);
 
 // This app's own Better Auth origin. When deployed the deployer injects the
 // public URL. In the sandbox live preview there's no fixed URL (each preview gets
@@ -151,7 +161,7 @@ export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
-const grokOAuthPlugin = authConfigured
+const grokOAuthPlugin = brokerOAuthConfigured
   ? genericOAuth({
       config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
         providerId,
@@ -212,7 +222,11 @@ export const auth = betterAuth({
   session: { cookieCache: { enabled: true, maxAge: 300 } },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
-  ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
+  // disableSignUp: public registration is closed; first owner is created with
+  // `pulsectl user add` on packaged installs (Kevin AppSec #1).
+  ...(emailAndPasswordEnabled
+    ? { emailAndPassword: { enabled: true, disableSignUp: true } }
+    : {}),
 
   // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
   // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a

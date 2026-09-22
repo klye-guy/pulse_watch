@@ -1,4 +1,5 @@
 import type { Sql } from "@/lib/db";
+import { assertSafeHostname, assertSafeHttpUrl } from "@/lib/monitor/safe-target";
 
 type Channel = {
   id: string;
@@ -169,6 +170,7 @@ async function sendChannel(
     return;
   }
   if (type === "discord" && cfg.url) {
+    await assertSafeHttpUrl(cfg.url);
     const res = await fetch(cfg.url, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -178,6 +180,7 @@ async function sendChannel(
     return;
   }
   if (type === "slack" && cfg.url) {
+    await assertSafeHttpUrl(cfg.url);
     const res = await fetch(cfg.url, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -196,6 +199,7 @@ async function sendChannel(
     return;
   }
   if (type === "webhook" && cfg.url) {
+    await assertSafeHttpUrl(cfg.url);
     const res = await fetch(cfg.url, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -211,6 +215,7 @@ async function sendEmail(cfg: Record<string, string>, text: string, payload: Rec
   const host = cfg.host?.trim();
   const to = cfg.to?.trim();
   if (!host || !to) throw new Error("SMTP host and recipients are required");
+  await assertSafeHostname(host);
   const port = Number(cfg.port || 587);
   const mode = (cfg.smtpSecure || (port === 465 ? "tls" : "starttls")).toLowerCase();
   const key = `${host}:${port}:${cfg.user ?? ""}:${mode}`;

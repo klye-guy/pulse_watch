@@ -3,6 +3,12 @@ import { setDefaultResultOrder } from "node:dns";
 import { lookup, resolve } from "node:dns/promises";
 import { connect } from "node:net";
 import { promisify } from "node:util";
+import {
+  UnsafeTargetError,
+  assertSafeHostname,
+  assertSafeHttpUrl,
+  isDangerousHostnameArg,
+} from "./safe-target";
 
 try {
   setDefaultResultOrder("ipv4first");
@@ -135,6 +141,7 @@ async function checkHttp(target: CheckTarget, start: number): Promise<CheckResul
   const url = target.url?.trim();
   if (!url) return fail(start, "No URL configured");
   try {
+    await assertSafeHttpUrl(url);
     const res = await withTimeout(target.timeoutSec * 1000, (signal) =>
       fetch(url, {
         method: (target.method || "GET").toUpperCase(),
@@ -180,10 +187,15 @@ async function checkHttp(target: CheckTarget, start: number): Promise<CheckResul
   }
 }
 
-function checkTcp(target: CheckTarget, start: number): Promise<CheckResult> {
+async function checkTcp(target: CheckTarget, start: number): Promise<CheckResult> {
   const host = target.hostname?.trim() || tryHostFromUrl(target.url);
   const port = target.port ?? 80;
-  if (!host) return Promise.resolve(fail(start, "No hostname configured"));
+  if (!host) return fail(start, "No hostname configured");
+  try {
+    await assertSafeHostname(host);
+  } catch (err) {
+    return fail(start, err instanceof UnsafeTargetError ? err.message : "Unsafe target");
+  }
   return new Promise((resolveResult) => {
     const socket = connect({ host, port, timeout: target.timeoutSec * 1000 });
     let settled = false;
@@ -209,6 +221,7 @@ async function checkDns(target: CheckTarget, start: number): Promise<CheckResult
   const host = target.hostname?.trim() || tryHostFromUrl(target.url);
   if (!host) return fail(start, "No hostname configured");
   try {
+    await assertSafeHostname(host);
     const type = (target.dnsRecordType || "A").toUpperCase();
     const records =
       type === "A" || type === "AAAA"
@@ -228,11 +241,19 @@ async function checkDns(target: CheckTarget, start: number): Promise<CheckResult
 async function checkPing(target: CheckTarget, start: number): Promise<CheckResult> {
   const host = target.hostname?.trim() || tryHostFromUrl(target.url);
   if (!host) return fail(start, "No hostname configured");
+  if (isDangerousHostnameArg(host)) return fail(start, "Hostname must not look like a CLI flag");
+  try {
+    await assertSafeHostname(host);
+  } catch (err) {
+    return fail(start, err instanceof UnsafeTargetError ? err.message : "Unsafe target");
+  }
   return pingGate.run(async () => {
     try {
-      const { stdout } = await execFileAsync("ping", ["-c", "1", "-W", String(Math.max(1, target.timeoutSec)), host], {
-        timeout: (target.timeoutSec + 1) * 1000,
-      });
+      const { stdout } = await execFileAsync(
+        "ping",
+        ["-c", "1", "-W", String(Math.max(1, target.timeoutSec)), "--", host],
+        { timeout: (target.timeoutSec + 1) * 1000 },
+      );
       const match = stdout.match(/time[=<]([\d.]+)\s*ms/i);
       const ping = match ? Math.round(Number(match[1])) : elapsed(start);
       return { status: "up" as const, ping, msg: "ICMP reply" };
