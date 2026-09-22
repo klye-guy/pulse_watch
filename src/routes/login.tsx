@@ -13,7 +13,8 @@ export const Route = createFileRoute("/login")({
     try {
       return await getSetupState();
     } catch {
-      return { needsSetup: true, allowPublicSignup: false, oauthEnabled: false };
+      // AppSec #9: never advertise needsSetup on error (constant false).
+      return { needsSetup: false, allowPublicSignup: false, oauthEnabled: false };
     }
   },
   component: Login,
@@ -22,7 +23,6 @@ export const Route = createFileRoute("/login")({
 function Login() {
   const { user, isPending } = useCurrentUserState();
   const loaded = Route.useLoaderData();
-  const needsSetup = loaded.needsSetup;
   const oauthEnabled = Boolean(loaded.oauthEnabled);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -121,18 +121,11 @@ function Login() {
           )}
         </div>
 
-        {needsSetup ? (
-          <p className="mt-4 text-center text-xs text-subtle">
-            Fresh install — create the owner with{" "}
-            <code className="font-mono text-muted">pulsectl user add</code> (public sign-up is
-            disabled).
-          </p>
-        ) : (
-          <p className="mt-4 text-center text-xs text-subtle">
-            Need an account? Ask an owner to add you in Users, or run{" "}
-            <code className="font-mono text-muted">pulsectl user add</code>.
-          </p>
-        )}
+        <p className="mt-4 text-center text-xs text-subtle">
+          Need an account? Ask an owner to add you in Users, or run{" "}
+          <code className="font-mono text-muted">pulsectl user add</code> (public sign-up is
+          disabled).
+        </p>
       </div>
     </main>
   );
